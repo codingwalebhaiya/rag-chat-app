@@ -4,6 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser"
 import authRoutes from "./routes/auth.route.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
+import uploadRoutes from "./routes/upload.route.js";
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 
 
 app.use("/api/v1/auth", authRoutes)
+app.use("/api/v1/upload", uploadRoutes)
 
 app.get("/", (req, res) => {
     res.send("RAG Backend Running 🚀");
