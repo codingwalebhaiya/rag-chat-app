@@ -3,7 +3,7 @@ import { IFileDocument } from "../types/file.types.js"
 
 const fileSchema = new Schema<IFileDocument>(
     {
-        user: {
+        userId: {
             type: Schema.Types.ObjectId,
             ref: "User",
             required: true,
@@ -16,61 +16,23 @@ const fileSchema = new Schema<IFileDocument>(
             trim: true,
         },
 
-        originalName: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-
         mimeType: {
             type: String,
+            required: true,
             default: "application/pdf",
         },
 
-        size: {
-            type: Number,
-            required: true,
-        },
-
-        s3Key: {
+        filePath: {
             type: String,
-            required: true,
-            unique: true,
+            required: true
         },
-
-        url: {
-            type: String,
-        },
-
-        pages: {
-            type: Number,
-            default: 0,
-        },
-
-        chunksCount: {
-            type: Number,
-            default: 0,
-        },
-
         status: {
             type: String,
-            enum: [
-                "UPLOADED",
-                "PROCESSING",
-                "READY",
-                "FAILED",
-                "DELETED",
-            ],
-            default: "UPLOADED",
-            index: true,
+            default: 'processing'
         },
-
-        namespace: {
+        pineconeNamespace: {
             type: String,
-        },
-
-        errorMessage: {
-            type: String,
+            required: true
         }
     },
 

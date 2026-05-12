@@ -9,3 +9,10 @@ export const connectDB = async () => {
     process.exit(1);
   }
 };
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  await mongoose.connection.close();
+  console.log("MongoDB disconnected on app termination");
+  process.exit(0);
+});

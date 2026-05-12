@@ -4,7 +4,7 @@ import cors from "cors";
 import cookieParser from "cookie-parser"
 import authRoutes from "./routes/auth.route.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
-import uploadRoutes from "./routes/upload.route.js";
+import fileRoutes from "./routes/file.route.js";
 
 dotenv.config();
 
@@ -19,10 +19,12 @@ app.use(express.json());
 app.use(cookieParser());
 
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public")); // Serve static files
 
 
 app.use("/api/v1/auth", authRoutes)
-app.use("/api/v1/upload", uploadRoutes)
+app.use("/api/v1/files", fileRoutes)
+//app.use("/api/v1/chat", chatRoutes)
 
 app.get("/", (req, res) => {
     res.send("RAG Backend Running 🚀");

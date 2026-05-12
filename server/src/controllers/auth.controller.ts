@@ -14,10 +14,12 @@ const register = asyncHandler(async (req, res) => {
 
     return res.status(201).json(
         new ApiResponse(201, "User registered successfully", {
-            id: user._id,
-            username: user.username,
-            email: user.email,
-            role: user.role
+            
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role
+            
         })
     );
 
@@ -51,14 +53,14 @@ const login = asyncHandler(async (req, res) => {
     )
 
     res.status(200).json(
-        new ApiResponse(200, "Login successfully", {
-            user: {
+        new ApiResponse(200, "Login successfully", 
+             {
                 id: user._id,
                 username: user.username,
                 email: user.email,
                 role: user.role
             },
-        })
+        )
     )
 
 })
@@ -69,7 +71,16 @@ const profile = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Unauthorized")
     }
     const user = await User.findById(userId).select("-password");
-    res.json(new ApiResponse(200, "Profile fetched successfully", user))
+    res.status(200).json(new ApiResponse(200, "Profile fetched successfully",
+        {
+            
+                id: user._id,
+                username: user.username,
+                email: user.email,
+                role: user.role
+            
+        }
+    ))
 
 })
 
