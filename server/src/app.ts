@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser"
 import authRoutes from "./routes/auth.route.js";
 import errorMiddleware from "./middlewares/error.middleware.js";
 import fileRoutes from "./routes/file.route.js";
+import chatRoutes from "./routes/chat.route.js";
 
 dotenv.config();
 
@@ -24,7 +25,7 @@ app.use(express.static("public")); // Serve static files
 
 app.use("/api/v1/auth", authRoutes)
 app.use("/api/v1/files", fileRoutes)
-//app.use("/api/v1/chat", chatRoutes)
+app.use("/api/v1/chat", chatRoutes)
 
 app.get("/", (req, res) => {
     res.send("RAG Backend Running 🚀");
