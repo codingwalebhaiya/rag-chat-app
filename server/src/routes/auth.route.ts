@@ -8,7 +8,7 @@ const authRoutes = Router();
 authRoutes.post("/register", register);
 authRoutes.post("/login", login);
 authRoutes.post("/logout", authMiddleware, logout);
-authRoutes.get("/me", authMiddleware, profile);
+authRoutes.get("/profile", authMiddleware, profile);
 authRoutes.post("/refresh-token", refreshAccessToken);
 
 

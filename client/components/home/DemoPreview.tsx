@@ -1,0 +1,1 @@
+export default function DemoPreview(){return <section className='container mx-auto px-4 py-20'><div className='rounded-3xl border p-8 shadow-sm'><h2 className='text-3xl font-bold'>See AI Answers in Seconds</h2><div className='mt-6 rounded-2xl bg-muted p-6 text-sm'>User: Summarize this contract\nAI: Key obligations, risks, renewal dates...</div></div></section>}

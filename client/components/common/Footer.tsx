@@ -1,0 +1,1 @@
+export default function Footer(){return <footer className='border-t py-10'><div className='container mx-auto px-4 text-sm text-muted-foreground flex flex-col md:flex-row justify-between gap-4'><div>© 2026 RAGFlow</div><div className='flex gap-4'><a href='#'>Privacy</a><a href='#'>Terms</a></div></div></footer>}

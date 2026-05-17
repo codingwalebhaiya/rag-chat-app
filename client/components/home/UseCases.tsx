@@ -1,0 +1,1 @@
+export default function UseCases(){return <section className='container mx-auto px-4 py-20'><h2 className='text-3xl font-bold text-center'>Built For Every Team</h2><div className='mt-10 grid md:grid-cols-4 gap-4'>{['Support','Sales','Legal','Education'].map(x=><div key={x} className='rounded-2xl border p-6'>{x}</div>)}</div></section>}

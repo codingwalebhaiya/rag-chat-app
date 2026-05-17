@@ -1,1 +1,1 @@
-# fullstack rag webapp
+# fullstack rag webapp using mern stack with langchain goggle gemini docker ..

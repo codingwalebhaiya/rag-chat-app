@@ -1,0 +1,1 @@
+export default function TrustedBy() { return <section className='border-y py-8'><div className='container mx-auto px-4 text-center text-sm text-muted-foreground'>Trusted by fast-growing startups, agencies, educators, and support teams</div></section> }
