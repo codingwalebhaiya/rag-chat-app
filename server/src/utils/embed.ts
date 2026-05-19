@@ -1,10 +1,24 @@
 import dotenv from "dotenv"
 dotenv.config()
 
-import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai'
+// import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai'
+
+// export const embeddings = new GoogleGenerativeAIEmbeddings({
+//   apiKey: process.env.GOOGLE_GEMINI_API_KEY!,
+//   modelName: "gemini-embedding-001", // for mapping text to vectors.
+// })
 
 
 
-export const embeddings = new GoogleGenerativeAIEmbeddings({
-  apiKey: process.env.GOGGLE_GEMINI_API_KEY!
-})
+import { CohereEmbeddings } from "@langchain/cohere";
+
+export const embeddings = new CohereEmbeddings({
+  apiKey: process.env.COHERE_API_KEY!, // In Node.js defaults to process.env.COHERE_API_KEY
+  batchSize: 48, // Default value if omitted is 48. Max value is 96
+  model: "embed-english-v3.0",
+});
+
+
+
+
+

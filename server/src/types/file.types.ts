@@ -17,7 +17,6 @@ export interface IFile {
     mimeType: string;
     status: FileStatus;
     pineconeNamespace: string;// userId-based namespace isolation
-
 }
 
 export interface IFileDocument extends IFile, Document {
@@ -27,23 +26,3 @@ export interface IFileDocument extends IFile, Document {
 }
 
 
-// ─── Chunk ─────────────────────────────────────────────────────────────────
-export interface TextChunk {
-  text: string;
-  pageNumber: number;
-  chunkIndex: number;
-  fileId: string;
-  fileName: string;
-  userId: string;
-}
-
- 
-// ─── Pinecone vector metadata ──────────────────────────────────────────────
-export interface ChunkMetadata {
-  fileId: string;
-  userId: string;
-  fileName: string;
-  pageNumber: number;
-  chunkIndex: number;
-  text: string;        // stored so we can return it without re-fetching
-}

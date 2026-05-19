@@ -4,15 +4,16 @@ const pc = new Pinecone({
   apiKey: process.env.PINECONE_API_KEY as string
 });
 
+const indexName = process.env.PINECONE_INDEX! as string
 
-const indexName = 'rag-chat-app';
-await pc.createIndexForModel({
+await pc.createIndex({
   name: indexName,
-  cloud: 'aws',
-  region: 'us-east-1',
-  embed: {
-    model: 'llama-text-embed-v2',
-    fieldMap: { text: 'chunk_text' },
+  dimension: 1024,
+  metric: "cosine",
+  spec: {
+    serverless: {
+      cloud: "aws",
+      region: "us-east-1"
+    }
   },
-  waitUntilReady: true,
 });

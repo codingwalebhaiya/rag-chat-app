@@ -8,7 +8,7 @@ const generateAccessToken = (payload: AccessTokenPayload): string => {
   if (!process.env.JWT_ACCESS_SECRET_KEY) {
     throw new ApiError(500, "JWT Access Secret Key is not defined in environment variables")
   }
-  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET_KEY!, { expiresIn: "15m" })
+  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET_KEY!, { expiresIn: "30m" })
 
 }
 

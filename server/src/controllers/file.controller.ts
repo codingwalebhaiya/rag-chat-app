@@ -16,9 +16,9 @@ const uploadPdf = asyncHandler(async (req, res) => {
     const doc = await File.create(
         {
             userId: req.user.id,
-            fileName: file.filename,
+            fileName: file.originalname,
             filePath: file.path,
-            pineconeNamespace: req.user.id,
+            pineconeNamespace: req.user.id.toString(),
             status: "processing"
 
         }
@@ -26,14 +26,19 @@ const uploadPdf = asyncHandler(async (req, res) => {
 
     try {
 
-        const text = await extactPdfText(file.path);
-        const chunks = await chunkText(text);
-        await ingestChunks(chunks, doc.id.toString(), doc.pineconeNamespace)
+        const parsedText = await extactPdfText(file.path);
+        // console.log(parsedText.pages)
+        const chunks = await chunkText(parsedText.pages);
+        console.log(chunks)
+
+       // chunks.slice(0, 10)
+            console.log("chunks:", chunks.length)
+        await ingestChunks(chunks, doc._id.toString(), doc.pineconeNamespace)
 
         doc.status = 'ready'
         await doc.save()
 
-        res.json({ success: true, doc })
+        res.status(201).json({ success: true, doc })
 
     }
 

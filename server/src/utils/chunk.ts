@@ -1,10 +1,10 @@
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters"
 
-export const chunkText = async (text: string) => {
+export const chunkText = async (pages: { text: string; num: number }[]) => {
     const splitter = new RecursiveCharacterTextSplitter({
         chunkSize: 1000,
         chunkOverlap: 200,
-         separators: [
+        separators: [
             "\n\n",
             "\n",
             ".",
@@ -12,5 +12,14 @@ export const chunkText = async (text: string) => {
         ]
     })
 
-    return splitter.createDocuments([text])
+    const docs = [];
+    for (const page of pages) {
+        const chunks = await splitter.createDocuments([page.text], [{ pageNumber: page.num }])
+
+        docs.push(...chunks)
+    }
+
+    return docs;
+
+
 }
