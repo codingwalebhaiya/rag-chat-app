@@ -18,19 +18,33 @@ const fileSchema = new Schema<IFileDocument>(
 
         mimeType: {
             type: String,
-            required: true,
-            default: "application/pdf",
+            required:true,
         },
 
-        filePath: {
+        fileSize: {
+            type: Number,
+            required: true
+        },
+        totalChunks: {
+            type: Number,
+            default: 0
+        },
+
+        s3Key: {
             type: String,
             required: true
         },
-        status: {
+        s3Url: {
             type: String,
-            default: 'processing'
+            required: true
         },
-        pineconeNamespace: {
+
+        status: {
+            type:String,
+            enum: ["processing", "ready", "failed"],
+            default: "processing"
+        },
+        namespace: {
             type: String,
             required: true
         }

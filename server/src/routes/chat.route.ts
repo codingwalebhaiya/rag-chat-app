@@ -5,6 +5,6 @@ import { chatWithDocs } from "../controllers/chat.controller.js";
 
 const chatRoutes = Router();
 
-chatRoutes.post("/", authMiddleware, chatWithDocs)
+chatRoutes.post("/:fileId", authMiddleware, chatWithDocs)
 
 export default chatRoutes;

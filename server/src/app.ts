@@ -25,7 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 
 app.use("/api/v1/auth", authRoutes)
 app.use("/api/v1/files", fileRoutes)
-app.use("/api/v1/chat", chatRoutes)
+app.use("/api/v1/chats", chatRoutes)
 
 app.get("/", (req, res) => {
     res.send("RAG Backend Running 🚀");

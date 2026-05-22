@@ -14,20 +14,6 @@ export const ingestChunks = async (docs: any[], docId: string, namespaceId: stri
   const texts = docs.map(doc => doc.pageContent)
   const vectors = await embeddings.embedDocuments(texts)
 
-  console.log(vectors)
-
-  
-  console.log(
-    "vectors:",
-    vectors.length
-  );
-
-  console.log(
-    "dimension:",
-    vectors[0]?.length
-  );
-
-
   if (
     !vectors.length ||
     !vectors[0]?.length
@@ -47,8 +33,6 @@ export const ingestChunks = async (docs: any[], docId: string, namespaceId: stri
 
   })
   )
-
-  // console.log(records)
 
 
   await namespace.upsert({ records })
