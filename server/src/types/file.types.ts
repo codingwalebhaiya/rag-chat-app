@@ -8,6 +8,7 @@ export interface IFile {
   mimeType: string;
   fileSize: number;
   totalChunks: number;
+  pageNumber: number;
   s3Key: string;
   s3Url: string;
   status: string;

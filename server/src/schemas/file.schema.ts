@@ -1,5 +1,11 @@
-import {z} from "zod"
+import { z } from "zod";
 
-export const fileSchema = z.object({
-  
-})
+const UploadPdfSchema = z.object({
+  originalname: z.string().min(1),
+  mimetype: z.literal(
+    "application/pdf"
+  ),
+  size: z
+    .number()
+    .max(20 * 1024 * 1024),
+});

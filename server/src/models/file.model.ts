@@ -18,7 +18,7 @@ const fileSchema = new Schema<IFileDocument>(
 
         mimeType: {
             type: String,
-            required:true,
+            required: true,
         },
 
         fileSize: {
@@ -29,7 +29,10 @@ const fileSchema = new Schema<IFileDocument>(
             type: Number,
             default: 0
         },
-
+        pageNumber: {
+            type: Number,
+            default: 0
+        },
         s3Key: {
             type: String,
             required: true
@@ -40,7 +43,7 @@ const fileSchema = new Schema<IFileDocument>(
         },
 
         status: {
-            type:String,
+            type: String,
             enum: ["processing", "ready", "failed"],
             default: "processing"
         },
