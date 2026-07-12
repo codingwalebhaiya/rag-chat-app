@@ -9,7 +9,7 @@ const ibmPlexSans = IBM_Plex_Sans({ subsets: ['latin'], variable: '--font-sans' 
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
-  subsets: ["latin"], 
+  subsets: ["latin"],
 });
 
 const geistMono = Geist_Mono({
@@ -30,13 +30,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", ibmPlexSans.variable)}
+      className={cn("h-full", "antialiased", 
+        // geistSans.className,
+        //  geistMono.className, 
+        // "font-sans", 
+        ibmPlexSans.variable)}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-full flex flex-col bg-background text-foreground ">
         <Providers>
           {children}
         </Providers>
-          <Toaster  />
+        <Toaster richColors toastOptions={{ duration: 3000, className: "bg-red-500" }} position="top-right" />
       </body>
     </html>
   );
