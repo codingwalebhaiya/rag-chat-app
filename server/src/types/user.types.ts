@@ -8,7 +8,8 @@ export interface IUser {
    email: string;
    password: string;
    role?: UserRole;
-   isVerified?: boolean
+   isVerified?: boolean;
+   refreshToken?: string;
 }
 
 export interface IUserDocument extends IUser, Document {
@@ -24,5 +25,5 @@ export interface IUserResponse {
    username: string;
    email: string;
    role: UserRole;
-   isVerified: boolean
+   isVerified: boolean;
 }

@@ -43,6 +43,10 @@ const userSchema = new Schema<IUserDocument>({
     isVerified: {
         type: Boolean,
         default: false
+    },
+    refreshToken:{
+        type: String,
+        select: false
     }
 
 },

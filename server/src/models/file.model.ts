@@ -35,7 +35,8 @@ const fileSchema = new Schema<IFileDocument>(
         },
         s3Key: {
             type: String,
-            required: true
+            required: true,
+            unique:true
         },
         s3Url: {
             type: String,

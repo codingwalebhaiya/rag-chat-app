@@ -1,4 +1,3 @@
-import Session from "../models/session.model.js";
 import User from "../models/user.model.js";
 import { loginSchema, registerSchema } from "../schemas/auth.schema.js";
 import { loginService, registerService } from "../services/auth.service.js";
@@ -14,12 +13,12 @@ const register = asyncHandler(async (req, res) => {
 
     return res.status(201).json(
         new ApiResponse(201, "User registered successfully", {
-            
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                role: user.role
-            
+
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role
+
         })
     );
 
@@ -27,9 +26,7 @@ const register = asyncHandler(async (req, res) => {
 
 const login = asyncHandler(async (req, res) => {
     const validatedData = loginSchema.parse(req.body);
-    const ip = req.ip ?? "unknown";
-    const userAgent = Array.isArray(req.headers["user-agent"]) ? req.headers["user-agent"][0] : (req.headers["user-agent"] ?? "unknown");
-    const { user, accessToken, refreshToken } = await loginService(validatedData, ip, userAgent);
+    const { user, accessToken, refreshToken } = await loginService(validatedData);
 
     const cookieOptions = {
         httpOnly: true,
@@ -53,8 +50,8 @@ const login = asyncHandler(async (req, res) => {
     )
 
     res.status(200).json(
-        new ApiResponse(200, "Login successfully", 
-             {
+        new ApiResponse(200, "Login successfully",
+            {
                 id: user._id,
                 username: user.username,
                 email: user.email,
@@ -73,12 +70,12 @@ const profile = asyncHandler(async (req, res) => {
     const user = await User.findById(userId).select("-password");
     res.status(200).json(new ApiResponse(200, "Profile fetched successfully",
         {
-            
-                id: user._id,
-                username: user.username,
-                email: user.email,
-                role: user.role
-            
+
+            id: user._id,
+            username: user.username,
+            email: user.email,
+            role: user.role
+
         }
     ))
 
@@ -99,13 +96,15 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
     const decoded = verifyRefreshToken(token)
 
+    // check refreshToken from mongodb 
+    const user = await User.findById(decoded.id).select("+refreshToken");
+    if (!user) {
+        throw new ApiError(401, "Unauthorized")
+    }
     const hashedToken = hashRefreshToken(token)
-    const session = await Session.findOne({
-        user: decoded.id,
-        refreshToken: hashedToken
-    })
-
-    if (!session) throw new ApiError(401, "Session expired")
+    if (user.refreshToken !== hashedToken) {
+        throw new ApiError(401, "Unauthorized")
+    }
 
     const payload = {
         id: decoded.id,
