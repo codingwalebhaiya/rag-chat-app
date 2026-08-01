@@ -1,12 +1,12 @@
 import { create } from "zustand"
 
 
-interface UserProfile {
-     id: string;
-     name?:string;
+export interface UserProfile {
+    id: string;
+    name?: string;
     username: string;
     email: string;
-    role: "USER" | "ADMIN"
+    role: "user" | "admin"
 }
 
 interface AuthState {
@@ -23,9 +23,3 @@ export const useAuthStore = create<AuthState>((set) => ({
     clearAuth: () => set({ user: null, isAuthenticated: false })
 }))
 
-// Global client event engine listener to handle unexpected global auth dropouts
-if (typeof window !== "undefined") {
-    window.addEventListener("auth-logout", () => {
-        useAuthStore.getState().clearAuth();
-    });
-}

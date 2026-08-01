@@ -1,132 +1,125 @@
-
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRegister } from "@/queries/auth.query"
+import { RegisterSchema, type RegisterInput } from "@/schemas/auth.schema";
+import { Loader2 } from "lucide-react";
 
 export default function RegisterForm() {
-  const router = useRouter();
-  const { register, loading, setLoading } = useAuth();
+    const { mutate: register, isPending, error } = useRegister();
 
-  // const [loading, setLoading] = useState(false);
+    const {
+        register: registerForm,
+        handleSubmit,
+        formState: { errors },
+    } = useForm<RegisterInput>({
+        resolver: zodResolver(RegisterSchema),
+        defaultValues: {
+            name: "",
+            username: "",
+            email: "",
+            password: ""
+        },
+    });
 
-  const [form, setForm] = useState({
-    name: "",
-    username: "",
-    email: "",
-    password: "",
-  });
-
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
-    e.preventDefault();
-
-    try {
-      setLoading(true);
-
-      await register(form);
-
-      router.push("/login");
-    } catch (error) {
-      console.log(error);
-    } finally {
-      setLoading(false);
+    function onSubmit(values: RegisterInput) {
+        register(values)
     }
-  };
 
-  return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4"
-    >
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          Name
-        </label>
+    return (
+        <div className="w-full max-w-md mx-auto p-6 bg-white border border-gray-200 rounded-xl shadow-sm dark:bg-zinc-900 dark:border-zinc-800">
+            <div className="mb-6">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-zinc-50">Create an account</h2>
+                <p className="text-sm text-gray-500 dark:text-zinc-400 mt-1">
+                    Enter your details below to set up your profile.
+                </p>
+            </div>
 
-        <input
-          type="text"
-          required
-          className="w-full rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
-          placeholder="Enter name"
-          value={form.name}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              name: e.target.value,
-            })
-          }
-        />
-      </div>
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          Username
-        </label>
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                {/* Name Field */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-zinc-300" htmlFor="name">
+                        Name
+                    </label>
+                    <input
+                        id="name"
+                        placeholder="John Doe"
+                        {...registerForm("name")}
+                        className="w-full px-3 py-2 border rounded-md text-sm bg-transparent outline-none transition focus:ring-2 focus:ring-black dark:focus:ring-white border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-50"
+                    />
+                    {errors.name && (
+                        <p className="text-xs font-medium text-red-500">{errors.name.message}</p>
+                    )}
+                </div>
 
-        <input
-          type="text"
-          required
-          className="w-full rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
-          placeholder="Enter username"
-          value={form.username}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              username: e.target.value,
-            })
-          }
-        />
-      </div>
+                {/* Username Field */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-zinc-300" htmlFor="username">
+                        Username
+                    </label>
+                    <input
+                        id="username"
+                        placeholder="johndoe123"
+                        {...registerForm("username")}
+                        className="w-full px-3 py-2 border rounded-md text-sm bg-transparent outline-none transition focus:ring-2 focus:ring-black dark:focus:ring-white border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-50"
+                    />
+                    {errors.username && (
+                        <p className="text-xs font-medium text-red-500">{errors.username.message}</p>
+                    )}
+                </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          Email
-        </label>
+                {/* Email Field */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-zinc-300" htmlFor="email">
+                        Email
+                    </label>
+                    <input
+                        id="email"
+                        type="email"
+                        placeholder="name@example.com"
+                        {...registerForm("email")}
+                        className="w-full px-3 py-2 border rounded-md text-sm bg-transparent outline-none transition focus:ring-2 focus:ring-black dark:focus:ring-white border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-50"
+                    />
+                    {errors.email && (
+                        <p className="text-xs font-medium text-red-500">{errors.email.message}</p>
+                    )}
+                </div>
 
-        <input
-          type="email"
-          required
-          className="w-full rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
-          placeholder="Enter email"
-          value={form.email}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              email: e.target.value,
-            })
-          }
-        />
-      </div>
+                {/* Password Field */}
+                <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-zinc-300" htmlFor="password">
+                        Password
+                    </label>
+                    <input
+                        id="password"
+                        type="password"
+                        placeholder="••••••••"
+                        {...registerForm("password")}
+                        className="w-full px-3 py-2 border rounded-md text-sm bg-transparent outline-none transition focus:ring-2 focus:ring-black dark:focus:ring-white border-gray-300 dark:border-zinc-700 text-gray-900 dark:text-zinc-50"
+                    />
+                    {errors.password && (
+                        <p className="text-xs font-medium text-red-500">{errors.password.message}</p>
+                    )}
+                </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-medium">
-          Password
-        </label>
+                {/* TanStack Query Error State */}
+                {error && (
+                    <p className="text-sm font-medium text-red-500 bg-red-50 dark:bg-red-950/30 p-2.5 rounded-md border border-red-200 dark:border-red-900/50">
+                        {error?.message || "Registration failed. Please try again."}
+                    </p>
+                )}
 
-        <input
-          type="password"
-          required
-          className="w-full rounded-xl border bg-background px-4 py-3 outline-none focus:ring-2 focus:ring-primary"
-          placeholder="Enter password"
-          value={form.password}
-          onChange={(e) =>
-            setForm({
-              ...form,
-              password: e.target.value,
-            })
-          }
-        />
-      </div>
-
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full rounded-xl bg-primary px-4 py-3 font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-60"
-      >
-        {loading ? "Creating..." : "Register"}
-      </button>
-    </form>
-  );
+                {/* Submit Button */}
+                <button
+                    type="submit"
+                    disabled={isPending}
+                    className="w-full flex items-center justify-center gap-2 bg-black text-white hover:bg-black/90 dark:bg-white dark:text-black dark:hover:bg-white/90 font-medium py-2 px-4 rounded-md text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {isPending ? "Creating account..." : "Register"}
+                </button>
+            </form>
+        </div>
+    );
 }

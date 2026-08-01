@@ -17,7 +17,7 @@ const Logout = async () => {
 };
 
 const Refresh = async () => {
-    const response = await api.post("/auth/refresh");
+    const response = await api.post("/auth/refresh-token");
     return response.data;
 };
 

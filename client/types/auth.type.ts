@@ -3,7 +3,7 @@ export interface User {
   name?: string;
   username: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  role: 'user' | 'admin';
   isVerified: boolean;
   createdAt: string; // ISO Date strings from API JSON
   updatedAt: string;
