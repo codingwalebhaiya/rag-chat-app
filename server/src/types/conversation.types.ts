@@ -3,6 +3,7 @@ import { Document, Types } from "mongoose";
 
 
 export interface IConversation {
+    conversationId: string;
     userId: Types.ObjectId;
     fileId: Types.ObjectId;
     title: string;

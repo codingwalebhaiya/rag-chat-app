@@ -1,65 +1,89 @@
-import File from "../models/file.model.js";
-import { generateAnswer } from "../services/generation.service.js";
-import { retrieveContext } from "../services/retrieval.service.js";
+import ApiError from "../utils/apiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { z } from "zod";
+import Conversation from "../models/conversation.model.js";
+import Message from "../models/message.model.js";
+import { retrieveContext } from "../services/retrieval.service.js";
+import { generateAnswer } from "../services/generation.service.js";
+import ApiResponse from "../utils/apiResponse.js";
 
-const AskQuestionSchema =
-    z.object({
-        query: z
-            .string()
-            .min(3)
-            .max(2000),
-    });
 
-const conversationWithDocs = asyncHandler(async (req, res) => {
-    const { query } = AskQuestionSchema.parse(req.body);
-    if (!query) {
-        return res.status(400).json({
-            success: false,
-            message: 'Query required'
-        })
-    }
+const userQuery = asyncHandler(async (req, res) => {
 
-    const file = await File.findById(req.params.fileId);
-    if (!file) {
-        return res.status(404).json({
-            success: false,
-            message: "File not found"
-        })
-    }
+    const { userQuery } = req.body;
+    const userId = req.user?.id;
+    const { conversationId } = req.params;
 
-    // 🔐 CRITICAL SECURITY FIX: Verify file ownership before allowing retrieval
-    const isOwner = file.userId.toString() === req.user.id.toString();
-    const isAdmin = req.user.role === "ADMIN"; // Optional role check
-
-    if (!isOwner && !isAdmin) {
-        return res.status(403).json({
-            success: false,
-            message: "Forbidden: You do not have permission to query this file"
-        });
+    if (!userQuery) {
+        throw new ApiError(400, "user message is required")
     }
 
 
-    const chunks = await retrieveContext({ query, namespace: file.namespace, fileId: file._id.toString() });
-    if (!chunks) {
-        return res.json({
-            success: true,
-            answer: "Not found in uploaded documents"
-        });
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+        throw new ApiError(404, "conversation not found")
     }
-    console.log("context text:", chunks);
 
-    const answer = await generateAnswer({ query, chunks })
-    console.log("generated answer", answer)
-
-    res.json({
-        success: true,
-        answer
+    const userMessage = await Message.create({
+        conversationId,
+        sender: userId,
+        content: userQuery
     })
+
+    // retrieve top k chunks context from vector db pinecone 
+    const contextOfTopKChunks = await retrieveContext({ userQuery, fileId: conversation.fileId, namespace: conversation.namespace })
+
+    // generate answer via llm using context of top k chunks 
+    const aiResponse = await generateAnswer({ userQuery, contextOfTopKChunks })
+
+    // save ai response 
+    const aiMessage = await Message.create({
+        conversationId,
+        sender: "assistant",
+        content: aiResponse.answer,
+        citations: aiResponse.citations,
+    })
+
+    return res.status(200).json(
+        new ApiResponse(200, "Message sent successfully", {
+            userMessage, // user message is important to send frontend because user have already userQuery in frontend then why send ??
+            aiMessage,
+        })
+    )
 
 })
 
-export {
-    conversationWithDocs
-}
+const getConversationMessages = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+        throw new ApiError(404, "conversation not found")
+    }
+    const messages = await Message.find({ conversationId }).sort({ createdAt: 1 })
+    return res.status(200).json(
+        new ApiResponse(200, "Messages fetched successfully", messages)
+    )
+})
+
+const getAllConversations = asyncHandler(async (req, res) => {
+    const userId = req.user?.id;
+    const conversations = await Conversation.find({ userId })
+    return res.status(200).json(
+        new ApiResponse(200, "Conversations fetched successfully", conversations)
+    )
+})
+
+const deleteConversation = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+    const conversation = await Conversation.findById(conversationId);
+    if (!conversation) {
+        throw new ApiError(404, "conversation not found")
+    }
+
+    await Conversation.findByIdAndDelete(conversationId);
+    await Message.deleteMany({ conversationId });
+    return res.status(200).json(
+        new ApiResponse(200, "Conversation deleted successfully", {})
+    )
+})
+
+export const conversationController = { userQuery, getConversationMessages, getAllConversations, deleteConversation }
