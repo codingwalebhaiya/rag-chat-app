@@ -25,32 +25,26 @@ const fileSchema = new Schema<IFileDocument>(
             type: Number,
             required: true
         },
-        totalChunks: {
-            type: Number,
-            default: 0
-        },
-        pageNumber: {
-            type: Number,
-            default: 0
-        },
-        s3Key: {
+        s3FileKey: {
             type: String,
             required: true,
-            unique:true
+            unique: true
         },
-        s3Url: {
+        //Socket.io: Transmit all transient stages (downloading, loading, splitting, indexing, completed, failed)
+        fileStatus: {
+           type:Boolean,
+           required:true,
+           default:false
+        },
+        pineconeNamespace: {
             type: String,
             required: true
         },
-
-        status: {
+       
+        jobId: {
             type: String,
-            enum: ["processing", "ready", "failed"],
-            default: "processing"
-        },
-        namespace: {
-            type: String,
-            required: true
+            default: null,
+            index: true
         }
     },
 

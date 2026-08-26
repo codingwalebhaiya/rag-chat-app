@@ -1,7 +1,5 @@
 import { Document, Types } from "mongoose";
 
-
-// file metadata stored in MongoDB
 export interface IFile {
   userId: Types.ObjectId;
   fileName: string;
@@ -9,10 +7,10 @@ export interface IFile {
   fileSize: number;
   totalChunks: number;
   pageNumber: number;
-  s3Key: string;
-  s3Url: string;
-  status: string;
-  namespace: string;// userId-based namespace isolation
+  s3FileKey: string;
+  fileStatus:boolean;
+  pineconeNamespace: string;
+  jobId: string | null;
 }
 
 export interface IFileDocument extends IFile, Document {
@@ -20,5 +18,3 @@ export interface IFileDocument extends IFile, Document {
   createdAt: Date;
   updatedAt: Date
 }
-
-

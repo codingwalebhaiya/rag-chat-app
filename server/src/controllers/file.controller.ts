@@ -1,166 +1,164 @@
-import { DeleteObjectCommand } from "@aws-sdk/client-s3";
-import { awsS3 } from "../config/s3Client.js";
-import { uploadPdfToS3 } from "../config/s3Upload.js";
+
+import Conversation from "../models/conversation.model.js";
+import ApiResponse from "../utils/apiResponse.js";
+import { docsQueue } from "../queue/docsQueue.js";
 import File from "../models/file.model.js";
 import ApiError from "../utils/apiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
-import { splitDocuments } from "../utils/chunk.js";
-import { loadPdfDocuments } from "../utils/pdf.js";
-import { pineconeIndex } from "../config/pinecone.js";
-import { ingestDocuments } from "../services/ingestion.service.js";
+import uploadPresignedUrl from "../utils/generateUploadPresignedUrl.js";
 
+// ===== STEP 1: Generate Upload URL =====
+const getUploadUrl = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const { fileName, fileSize, mimeType } = req.body;
 
-const uploadPdf = asyncHandler(async (req, res) => {
-    const file = req.file;
-    if (!file) {
-        return res.status(400).json({ success: false, message: 'No file uploaded' });
+    if (!fileName || !fileSize || !mimeType) {
+        throw new ApiError(400, "All fields are required")
     }
 
-    const cleanTenantNamespace = `tenant_user_${req.user.id.toString()}`;
+    if (fileSize > 5 * 1024 * 1024) { // 5MB
+        throw new ApiError(400, "File size should be less than 5MB")
+    }
 
-    const s3Key = await uploadPdfToS3(file);
-    const s3Url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
+    if (!mimeType.startsWith("application/pdf")) {
+        throw new ApiError(400, "Only PDF files are allowed")
+    }
 
-    const dbFile = await File.create(
-        {
-            userId: req.user.id,
-            fileName: file.originalname,
-            fileSize: file.size,
-            mimeType: file.mimetype,
-            s3Key,
-            s3Url,
-            namespace: cleanTenantNamespace,
+    // Clean filename
+    const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+
+    // create pinecone namespace
+   const namespace = `tenant_user_${userId.toString()}`;
+
+
+    const s3FileKey = `docs/${userId.toString()}/${Date.now()}-${safeFileName}`;
+
+    // Generate PUT presigned URL for direct browser upload
+    const presignedUrl = await uploadPresignedUrl(s3FileKey, mimeType);
+    if (!presignedUrl) {
+        throw new ApiError(500, "Failed to generate presigned URL")
+    }
+
+    // Create File document in MongoDB 
+    const file = await File.create({
+        userId,
+        fileName: safeFileName,
+        fileSize,
+        mimeType,
+        s3FileKey,
+        pineconeNamespace:namespace
+
+    })
+
+    // create conversation document in MongoDB
+    const conversation = await Conversation.create({
+        userId,
+        fileId: file._id,
+        title: safeFileName
+    })
+
+    // send response with presigned url and upload pdf file from frontend to aws s3
+    return res.status(200).json(
+        new ApiResponse(201, "Upload URL generated successfully ", {
+            presignedUrl,
+            s3Key: s3FileKey,
+            conversationId: conversation._id.toString(),
+            fileId: file._id.toString()
+        })
+    )
+
+
+})
+
+
+// ===== STEP 2: Confirm Upload & Start Processing =====
+const confirmUploadAndProcess = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const { s3Key, conversationId } = req.body;
+
+    if (!s3Key || !conversationId) {
+        throw new ApiError(400, "All fields are required")
+    }
+
+    // Find conversation and populate file
+    const conversation = await Conversation.findById(conversationId).populate('fileId')
+    if (!conversation) {
+        throw new ApiError(404, "Conversation not found");
+    }
+
+    // Access the populated file
+    const file = conversation.fileId;
+
+    if (!file) {
+        throw new ApiError(404, "File not found in conversation");
+    }
+
+    // Verify that the s3Key matches the file's s3FileKey
+    if (file.s3FileKey !== s3Key) {
+        throw new ApiError(400, "S3 key does not match the file");
+    }
+
+    // Get the pinecone namespace from the file
+    const pineconeNamespace = file.pineconeNamespace;
+
+
+    // Verify ownership
+    if (file.userId.toString() !== userId.toString()) {
+        throw new ApiError(403, "Unauthorized");
+    }
+
+    // Check if file is already being processed
+    if (file.jobId) {
+        throw new ApiError(400, "File is already being processed");
+    }
+
+    // Check if conversation is already active
+    if (conversation.conversationStatus) {
+        throw new ApiError(400, "Conversation is already active");
+    }
+
+
+    // Add BullMQ job for background processing
+    const job = await docsQueue.add("document-ingestion-queue", {
+        fileName: file.fileName,
+        fileId: file._id.toString(),
+        conversationId: conversation._id.toString(),
+        s3Key,
+        pineconeNamespace,
+    }, {
+        jobId: `docs-${file._id}`,
+        priority: 1,
+        removeOnComplete: true,
+        removeOnFail: true
+        // attempts: 3,
+        // backoff: { type: "exponential", delay: 5000 },
+    })
+
+
+    // Update jobId in file document and mark conversation as active
+    await Promise.all([
+        File.updateOne(
+            { _id: file._id },
+            { jobId: job.id }
+        ),
+        Conversation.updateOne(
+            { _id: conversation._id },
+            { conversationStatus: true }
+        )
+    ]);
+
+    // Send response to frontend 
+    return res.status(200).json(
+        new ApiResponse(200, "File processing started", {
+            jobId: job.id,
             status: "processing"
-        }
-    )
-
-    try {
-        const { documents, totalPages } = await loadPdfDocuments(file.buffer);
-        dbFile.pageNumber = totalPages;
-        await dbFile.save();
-
-        const chunks = await splitDocuments({
-            documents,
-            fileId: dbFile._id.toString(),
-            fileName: file.originalname,
-            userId: req.user.id.toString(),
-            namespace: cleanTenantNamespace
-        });
-
-        // update the document with totalChunks
-        dbFile.totalChunks = chunks.length;
-        await dbFile.save();
-
-        await ingestDocuments(chunks, cleanTenantNamespace)
-
-        dbFile.status = 'ready'
-        await dbFile.save()
-        return res.status(201).json({ success: true, document: dbFile })
-    }
-
-    catch (error: any) {
-        console.error(error);
-        // Update status to failed in case of error
-        if (dbFile) {
-            dbFile.status = 'failed';
-            await dbFile.save();
-        }
-        throw new ApiError(
-            500,
-            error.message
-        );
-    }
-}
-)
-
-const getFile = asyncHandler(async (req, res) => {
-
-    const file = await File.findById(req.params.fileId);
-
-
-    if (!file) {
-        return res.status(404).json({
-            success: false,
-            message: "File not found"
         })
-    }
+    );
 
-    const isOwner =
-        file.userId.toString() === req.user.id.toString();
 
-    const isAdmin =
-        req.user.role === "ADMIN";
-
-    if (!isOwner && !isAdmin) {
-        throw new ApiError(403, "Forbidden");
-    }
-
-    return res.status(200).json({
-        success: true,
-        message: "File fetched successfully",
-        data: file
-    })
 })
 
-const deleteFile = asyncHandler(async (req, res) => {
-    const file = await File.findById(req.params.fileId);
-
-    if (!file) {
-        return res.status(404).json({
-            success: false,
-            message: "File not found"
-        })
-    }
-
-    const isOwner =
-        file.userId.toString() === req.user.id.toString();
-
-    const isAdmin =
-        req.user.role === "ADMIN";
-
-    if (!isOwner && !isAdmin) {
-        throw new ApiError(403, "Forbidden");
-    }
-
-    // delete pdf file from s3
-    await awsS3.send(
-        new DeleteObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: file.s3Key
-        })
-    )
-
-    //  delete vectors from pinecone vector database 
-    // await index.namespace(file.namespace)
-    //     .deleteMany({
-    //         filter: {
-    //             fileId:
-    //                 file._id.toString()
-    //         }
-    //     })
-
-    //  FIX: Delete vectors from Pinecone using predictable IDs
-    const vectorIdsToDelete: string[] = [];
-    for (let i = 0; i < file.totalChunks; i++) {
-        vectorIdsToDelete.push(`${file._id.toString()}_chunk_${i}`);
-    }
-
-    if (vectorIdsToDelete.length > 0) {
-        await pineconeIndex.namespace(file.namespace).deleteMany(vectorIdsToDelete);
-    }
-
-    // delete metadata from mongodb
-    await file.deleteOne();
-
-    return res.status(200).json({
-        success: true,
-        message: "File, vectors and metadata deleted successfully",
-    })
-})
-
-
-export {
-    uploadPdf,
-    getFile,
-    deleteFile
+export const fileController = {
+    getUploadUrl,
+    confirmUploadAndProcess
 }

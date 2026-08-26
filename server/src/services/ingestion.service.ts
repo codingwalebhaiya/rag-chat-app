@@ -1,67 +1,44 @@
 
-import { z } from "zod";
-import { documentEmbeddings } from "../utils/embed.js";
+import { Document } from "@langchain/core/documents";
+import { PineconeStore } from "@langchain/pinecone"
+import { embeddings } from "../utils/embed.js"
 import { pineconeIndex } from "../config/pinecone.js";
+import ApiError from "../utils/apiError.js";
 
-const PineconeMetadataSchema =
-  z.object({
-    fileId: z.string(),
-    fileName: z.string(),
-    userId: z.string(),
-    pageNumber: z.number(),
-    chunkIndex: z.number(),
-  });
+interface IngestParams {
+  chunksWithMetadata: Document[];
+  pineconeNamespace: string;
+}
 
-export const ingestDocuments = async (
-  chunkDocuments: any[],
-  namespace: string
-) => {
+const ingestDocuments = async ({
+  chunksWithMetadata,
+  pineconeNamespace
+}: IngestParams) => {
 
-  const pineconeNamespace =
-    pineconeIndex.namespace(namespace);
 
-  const chunkTexts =
-    chunkDocuments.map(
-      chunk => chunk.pageContent
-    );
+  console.log("ingestion namespace", pineconeNamespace)
+  
+  try {
+    if (!chunksWithMetadata || chunksWithMetadata.length === 0) {
+      throw new Error("No documents provided for ingestion.");
+    }
 
-  const embeddings =
-    await documentEmbeddings.embedDocuments(
-      chunkTexts
-    );
-
-  const records =
-    embeddings.map(
-      (embedding, index) => {
-
-        const metadata =
-          PineconeMetadataSchema.parse(
-            chunkDocuments[index].metadata
-          );
-
-        return {
-          id:
-            chunkDocuments[index].id ??
-            `${metadata.fileId}_chunk_${index}`,
-
-          values: embedding,
-
-          metadata: {
-            text: chunkDocuments[index].pageContent,
-            fileId: metadata.fileId,
-            fileName: metadata.fileName,
-            userId: metadata.userId,
-            pageNumber:
-              metadata.pageNumber,
-            chunkIndex:
-              metadata.chunkIndex,
-          },
-        };
+    await PineconeStore.fromDocuments(
+      chunksWithMetadata,
+      embeddings,
+      {
+        pineconeIndex,
+        namespace: pineconeNamespace,
       }
     );
+    
+    console.log("✅ Ingestion successfully completed into Pinecone Serverless!");
+  }
+  catch (error) {
+    throw new ApiError(500, "Ingestion failed");
+  }
 
-  await pineconeNamespace.upsert({
-    records,
-  });
-  console.log("ingestion done", records[0]);
-};
+} 
+
+
+export default ingestDocuments;
