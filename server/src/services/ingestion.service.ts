@@ -14,9 +14,6 @@ const ingestDocuments = async ({
   chunksWithMetadata,
   pineconeNamespace
 }: IngestParams) => {
-
-
-  console.log("ingestion namespace", pineconeNamespace)
   
   try {
     if (!chunksWithMetadata || chunksWithMetadata.length === 0) {
@@ -32,7 +29,7 @@ const ingestDocuments = async ({
       }
     );
     
-    console.log("✅ Ingestion successfully completed into Pinecone Serverless!");
+    console.log(" Ingestion successfully completed into Pinecone Serverless!");
   }
   catch (error) {
     throw new ApiError(500, "Ingestion failed");

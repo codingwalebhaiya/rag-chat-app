@@ -1,21 +1,19 @@
-import { PutObjectCommand } from "@aws-sdk/client-s3";
-import { awsS3 } from "./s3Client.js";
+import { PutObjectCommand } from "@aws-sdk/client-s3"
+import s3Client from "./s3Client.js"
 
-export const uploadPdfToS3 = async (file: any) => {
-    console.log(file)
 
-    const key = `pdfs/${Date.now()}-${file.originalname}`;
-    console.log(key)
+const uploadToS3 = async (fileKey: string, file: Buffer, mimeType: string, originalName: string, userId: string) => {
+    const uploadResult = await s3Client.send(new PutObjectCommand({
+        Bucket: process.env.S3_BUCKET_NAME!,
+        Key: fileKey,
+        Body: file, 
+        ContentType: mimeType,
+        Metadata: {
+            originalName: originalName,
+            userId: userId,
+        }
+    }))
 
-    await awsS3.send(
-        new PutObjectCommand({
-            Bucket:
-                process.env.AWS_BUCKET_NAME!,
-            Key: key,
-            Body: file.buffer,
-            ContentType: file.mimetype
-        })
-    )
-
-    return key;
+    return uploadResult;
 }
+export default uploadToS3;

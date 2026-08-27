@@ -1,26 +1,15 @@
+//import { Pinecone } from '@pinecone-database/pinecone';
+// import { Pinecone as PineconeClient } from "@pinecone-database/pinecone";
+  
+// const pinecone = new PineconeClient({ apiKey: process.env.PINECONE_API_KEY! });
+// export const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX!);
+
 import { Pinecone } from '@pinecone-database/pinecone';
 
-export const pinecone = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY as string
+const pc = new Pinecone({
+  apiKey: process.env.PINECONE_API_KEY!
 });
-
-//const pineconeIndex = process.env.PINECONE_INDEX! as string
-
-export const pineconeIndex =
-  pinecone.Index(process.env.PINECONE_INDEX!);
-
-// await pinecone.createIndex({
-//   name: pineconeIndex,
-//   dimension: 1024,
-//   metric: "cosine",
-//   spec: {
-//     serverless: {
-//       cloud: "aws",
-//       region: "us-east-1"
-//     }
-//   },
-// });
-
+export const pineconeIndex = pc.index(process.env.PINECONE_INDEX!);
 
 
  //Optimization Checklist for Fast & Proper RAGTo ensure
