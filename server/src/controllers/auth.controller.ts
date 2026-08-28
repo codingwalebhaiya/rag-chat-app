@@ -13,15 +13,12 @@ const register = asyncHandler(async (req, res) => {
 
     return res.status(201).json(
         new ApiResponse(201, "User registered successfully", {
-
             id: user._id,
             username: user.username,
             email: user.email,
             role: user.role
-
         })
     );
-
 })
 
 const login = asyncHandler(async (req, res) => {
@@ -56,7 +53,7 @@ const login = asyncHandler(async (req, res) => {
                 username: user.username,
                 email: user.email,
                 role: user.role
-            },
+            }
         )
     )
 
@@ -139,4 +136,4 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
 
 
 
-export { register, login, profile, logout, refreshAccessToken }
+export const authController = { register, login, profile, logout, refreshAccessToken }

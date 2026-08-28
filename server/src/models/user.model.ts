@@ -37,8 +37,8 @@ const userSchema = new Schema<IUserDocument>({
     },
     role: {
         type: String,
-        enum: ["USER", "ADMIN"],
-        default: "USER"
+        enum: ["user", "admin"],
+        default: "user"
     },
     isVerified: {
         type: Boolean,
