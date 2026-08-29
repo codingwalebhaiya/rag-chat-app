@@ -3,74 +3,161 @@ import asyncHandler from "../utils/asyncHandler.js";
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
 import { retrieveContext } from "../services/retrieval.service.js";
-import { generateAnswer } from "../services/generation.service.js";
+import generateAnswer from "../services/generation.service.js";
 import ApiResponse from "../utils/apiResponse.js";
+import File from "../models/file.model.js";
+import { DeleteObjectCommand } from "@aws-sdk/client-s3";
+import s3Client from "../config/s3Client.js"
+import { pineconeIndex } from "../config/pinecone.js";
+import generateCloudFrontSignedUrl from "../utils/generateCloudFrontSignedUrl.js";
 
 
 const userQuery = asyncHandler(async (req, res) => {
 
-    const { userQuery } = req.body;
+    const { userQuery } = req.body;// User's question
     const userId = req.user?.id;
     const { conversationId } = req.params;
 
-    if (!userQuery) {
-        throw new ApiError(400, "user message is required")
+    if (!userQuery || !userQuery.trim()) {
+        throw new ApiError(400, "Query is required")
     }
 
+    // Step 1: Find conversation and verify ownership + file is ready
+    const conversation = await Conversation.findOne({
+        _id: conversationId,
+        userId
+    }).populate("fileId");
 
-    const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
         throw new ApiError(404, "conversation not found")
     }
 
-    const userMessage = await Message.create({
+    const file = conversation.fileId;
+
+    if (!file) {
+        throw new ApiError(404, "file not found")
+    }
+
+    // add same namespace like ingestion pipeline - which is store in pinecone db 
+    const namespace = `tenant_user_${userId.toString()}`;
+    //const namespace = file.pineconeNamespace;
+
+    // Step 2: Save user message
+    await Message.create({
         conversationId,
-        sender: userId,
-        content: userQuery
+        sender: "user",
+        content: userQuery.trim()
     })
 
+    // Step 3: Query Pinecone for relevant chunks (RAG retrieval)
     // retrieve top k chunks context from vector db pinecone 
-    const contextOfTopKChunks = await retrieveContext({ userQuery, fileId: conversation.fileId, namespace: conversation.namespace })
+    const contextOfTopKChunks = await retrieveContext({
+        userQuery,
+        fileId: file._id.toString(),
+        namespace
+    })
+
 
     // generate answer via llm using context of top k chunks 
-    const aiResponse = await generateAnswer({ userQuery, contextOfTopKChunks })
+    const aiResponse = await generateAnswer({ userQuery, contextOfTopKChunks });
+    console.log("llm ai response", aiResponse)
 
-    // save ai response 
+
     const aiMessage = await Message.create({
         conversationId,
         sender: "assistant",
         content: aiResponse.answer,
-        citations: aiResponse.citations,
+        sources: aiResponse.sources || []
     })
+    console.log("ai response created in mongodb ", aiMessage);
 
     return res.status(200).json(
         new ApiResponse(200, "Message sent successfully", {
-            userMessage, // user message is important to send frontend because user have already userQuery in frontend then why send ??
-            aiMessage,
+            assistantMessage: {
+                sender: aiMessage.sender,
+                content: aiMessage.content,
+                sources: aiMessage.sources,
+                createdAt: aiMessage.createdAt,
+                updatedAt: aiMessage.updatedAt,
+            }
+
         })
     )
 
 })
 
-const getConversationMessages = asyncHandler(async (req, res) => {
+// get single conversation with all messages by conversation id
+const conversation = asyncHandler(async (req, res) => {
     const { conversationId } = req.params;
-    const conversation = await Conversation.findById(conversationId);
+    const userId = req.user.id;
+    const conversation = await Conversation.findOne({
+        _id: conversationId,
+        userId: userId,
+    }).populate('fileId');
+
     if (!conversation) {
         throw new ApiError(404, "conversation not found")
     }
-    const messages = await Message.find({ conversationId }).sort({ createdAt: 1 })
+
+    // Generate CloudFront signed URL if file is true
+    let cloudfrontSignedUrl = null;
+    if (
+        conversation.fileId &&
+        conversation.fileId.fileStatus === true &&
+        conversation.fileId.s3FileKey) {
+
+        try {
+
+            const fileKey = conversation.fileId.s3FileKey;
+            cloudfrontSignedUrl = generateCloudFrontSignedUrl(
+                fileKey,
+                3600 // 1 hour expiry
+            );
+
+            console.log("cloudfront signed url", cloudfrontSignedUrl);
+        } catch (error) {
+            console.error("Failed to generate signed URL:", error);
+            throw new ApiError(500, "Failed to generate CloudFront signed URL");
+            // Don't fail the whole request if URL generation fails
+            // The frontend can handle missing URL
+        }
+    }
+
+    const messages = await Message.find({ conversationId }).sort({ createdAt: 1 }).lean();
+
     return res.status(200).json(
-        new ApiResponse(200, "Messages fetched successfully", messages)
-    )
+        new ApiResponse(200, "Conversation loaded successfully", {
+            cloudfrontSignedUrl,
+            file: {
+                id: conversation.fileId._id.toString(),
+                status: conversation.fileId.fileStatus,
+            },
+            conversation: {
+                id: conversation._id.toString(),
+                messages: messages.map((msg) => ({
+                    sender: msg.sender,
+                    content: msg.content,
+                    sources: msg.sources || [],
+                    createdAt: msg.createdAt,
+                    updatedAt: msg.updatedAt,
+                })),
+            }
+
+        })
+    );
+
 })
 
+
+// show in frontend sidebar as conversation list with file name as title
 const getAllConversations = asyncHandler(async (req, res) => {
     const userId = req.user?.id;
-    const conversations = await Conversation.find({ userId })
+    const conversations = await Conversation.find({ userId });
     return res.status(200).json(
         new ApiResponse(200, "Conversations fetched successfully", conversations)
     )
 })
+
 
 const deleteConversation = asyncHandler(async (req, res) => {
     const { conversationId } = req.params;
@@ -79,11 +166,58 @@ const deleteConversation = asyncHandler(async (req, res) => {
         throw new ApiError(404, "conversation not found")
     }
 
+    const isOwner =
+        conversation.userId.toString() === req.user.id.toString();
+
+    const isAdmin =
+        req.user.role === "ADMIN";
+
+    if (!isOwner && !isAdmin) {
+        throw new ApiError(403, "Forbidden");
+    }
+
+    const file = await File.findById(conversation.fileId);
+    if (!file) {
+        throw new ApiError(404, "file not found")
+    }
+
+
+    // delete pdf file from aws  s3
+    await s3Client.send(
+        new DeleteObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: file.s3Key
+        })
+    )
+
+    //  delete vectors from pinecone vector database 
+    // await index.namespace(file.namespace)
+    //     .deleteMany({
+    //         filter: {
+    //             fileId:
+    //                 file._id.toString()
+    //         }
+    //     })
+
+    //  FIX: Delete vectors from Pinecone using predictable IDs
+    const vectorIdsToDelete: string[] = [];
+    for (let i = 0; i < file.totalChunks; i++) {
+        vectorIdsToDelete.push(`${file._id.toString()}_chunk_${i}`);
+    }
+
+    if (vectorIdsToDelete.length > 0) {
+        await pineconeIndex.namespace(file.namespace).deleteMany(vectorIdsToDelete);
+    }
+
+    // delete file metadata from mongodb
+    await file.deleteOne();
+
     await Conversation.findByIdAndDelete(conversationId);
     await Message.deleteMany({ conversationId });
     return res.status(200).json(
-        new ApiResponse(200, "Conversation deleted successfully", {})
+        new ApiResponse(200, "File, vectors and metadata including conversation and messages  deleted successfully", {})
     )
 })
 
-export const conversationController = { userQuery, getConversationMessages, getAllConversations, deleteConversation }
+
+export const conversationController = { userQuery, conversation, getAllConversations, deleteConversation }

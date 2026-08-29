@@ -6,13 +6,13 @@ const conversationRoutes = Router();
 
 conversationRoutes.use(authMiddleware)
 
-// ai assistant generated response send to frontend
-conversationRoutes.post("/:conversationId/messages", conversationController.userQuery)
+// user query endpoint
+conversationRoutes.post("/:conversationId/query", conversationController.userQuery)
 
-// get all messages of single conversation 
+//  returns PDF URL + ALL messages
 conversationRoutes.get(
-    "/:conversationId/messages",
-    conversationController.getConversationMessages
+    "/:conversationId",
+    conversationController.conversation
 );
 
 // get all conversation for sidebar
@@ -21,7 +21,16 @@ conversationRoutes.get(
     conversationController.getAllConversations
 )
 
-// // Delete conversation
+// Delete conversation - with file deletion from s3 and pinecone namespace and mongodb (conversation and messages and file)
+// Delete conversation
+//       ↓
+// cancel jobs
+//       ↓
+// delete vectors
+//       ↓
+// delete S3
+//       ↓
+// delete file metadata
 conversationRoutes.delete(
     "/:conversationId",
     conversationController.deleteConversation

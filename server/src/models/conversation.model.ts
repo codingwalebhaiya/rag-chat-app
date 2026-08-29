@@ -21,6 +21,11 @@ const conversationSchema = new Schema<IConversationDocument>({
         type: String,  // e.g., "Chat with Q4_Report.pdf"
         required: true,
         trim: true
+    },
+    conversationStatus: {
+       type:Boolean,
+       required:true,
+       default:false
     }
 
 }, {

@@ -7,6 +7,7 @@ export interface IConversation {
     userId: Types.ObjectId;
     fileId: Types.ObjectId;
     title: string;
+    conversationStatus: boolean
 
 }
 
