@@ -158,7 +158,11 @@ const docsWorker = new Worker(
     },
     {
         connection: bullmqConnection,
-        concurrency: 1
+        concurrency: 1,
+        lockDuration: 300000, // 5 minutes (default is 30 seconds)
+        lockRenewTime: 15000, // Renew every 15 seconds (default is 15 seconds)
+        stalledInterval: 300000, // Check for stalled jobs every 5 minutes
+        maxStalledCount: 2, // Allow 2 stalled attempts
 
 
     }

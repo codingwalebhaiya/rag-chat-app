@@ -114,7 +114,7 @@ const conversation = asyncHandler(async (req, res) => {
                 3600 // 1 hour expiry
             );
 
-            console.log("cloudfront signed url", cloudfrontSignedUrl);
+
         } catch (error) {
             console.error("Failed to generate signed URL:", error);
             throw new ApiError(500, "Failed to generate CloudFront signed URL");
@@ -160,63 +160,79 @@ const getAllConversations = asyncHandler(async (req, res) => {
 
 
 const deleteConversation = asyncHandler(async (req, res) => {
-    const { conversationId } = req.params;
-    const conversation = await Conversation.findById(conversationId);
-    if (!conversation) {
-        throw new ApiError(404, "conversation not found")
+
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user?.id;
+        console.log("conversation id ", conversationId)
+
+        const conversation = await Conversation.findById(conversationId);
+        if (!conversation) {
+            throw new ApiError(404, "conversation not found")
+        }
+
+
+        const isOwner =
+            conversation.userId.toString() === req.user.id.toString();
+
+        const isAdmin =
+            req.user.role === "ADMIN";
+
+        if (!isOwner && !isAdmin) {
+            throw new ApiError(403, "Forbidden");
+        }
+
+        const file = await File.findById(conversation.fileId);
+        if (!file) {
+            throw new ApiError(404, "file not found")
+        }
+
+
+
+        // delete pdf file from aws  s3
+        const awsFile = await s3Client.send(
+            new DeleteObjectCommand({
+                Bucket: process.env.AWS_S3_BUCKET_NAME,
+                Key: file.s3FileKey
+            })
+        )
+        if (!awsFile) {
+            throw new ApiError(500, "Failed to delete file from AWS S3");
+        }
+
+
+        const fileId = file._id.toString();
+        const pineconeNamespace = `tenant_user_${userId.toString()}`;
+
+        // Delete with filter via fileId
+   await pineconeIndex.namespace(pineconeNamespace).deleteMany({
+            fileId: { $eq: fileId }
+        });
+
+
+        // delete file metadata from mongodb
+        const deletedFile = await file.deleteOne();
+        if (!deletedFile) {
+            throw new ApiError(500, "Failed to delete file metadata from mongodb");
+        }
+
+        const deletedConversation = await Conversation.findByIdAndDelete(conversationId);
+        if (!deletedConversation) {
+            throw new ApiError(500, "Failed to delete conversation from mongodb");
+        }
+
+        const deletedMessages = await Message.deleteMany({ conversationId });
+        if (!deletedMessages) {
+            throw new ApiError(500, "Failed to delete messages from mongodb");
+        }
+
+        return res.status(200).json(
+            new ApiResponse(200, "File, vectors and metadata including conversation and messages  deleted successfully", {})
+        )
+
+    } catch (error) {
+        throw new ApiError(500, "Failed to delete conversation");
     }
-
-    const isOwner =
-        conversation.userId.toString() === req.user.id.toString();
-
-    const isAdmin =
-        req.user.role === "ADMIN";
-
-    if (!isOwner && !isAdmin) {
-        throw new ApiError(403, "Forbidden");
-    }
-
-    const file = await File.findById(conversation.fileId);
-    if (!file) {
-        throw new ApiError(404, "file not found")
-    }
-
-
-    // delete pdf file from aws  s3
-    await s3Client.send(
-        new DeleteObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
-            Key: file.s3Key
-        })
-    )
-
-    //  delete vectors from pinecone vector database 
-    // await index.namespace(file.namespace)
-    //     .deleteMany({
-    //         filter: {
-    //             fileId:
-    //                 file._id.toString()
-    //         }
-    //     })
-
-    //  FIX: Delete vectors from Pinecone using predictable IDs
-    const vectorIdsToDelete: string[] = [];
-    for (let i = 0; i < file.totalChunks; i++) {
-        vectorIdsToDelete.push(`${file._id.toString()}_chunk_${i}`);
-    }
-
-    if (vectorIdsToDelete.length > 0) {
-        await pineconeIndex.namespace(file.namespace).deleteMany(vectorIdsToDelete);
-    }
-
-    // delete file metadata from mongodb
-    await file.deleteOne();
-
-    await Conversation.findByIdAndDelete(conversationId);
-    await Message.deleteMany({ conversationId });
-    return res.status(200).json(
-        new ApiResponse(200, "File, vectors and metadata including conversation and messages  deleted successfully", {})
-    )
 })
 
 

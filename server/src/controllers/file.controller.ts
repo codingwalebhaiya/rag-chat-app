@@ -56,6 +56,7 @@ const getUploadUrl = asyncHandler(async (req, res) => {
         fileId: file._id,
         title: safeFileName
     })
+    
 
     // send response with presigned url and upload pdf file from frontend to aws s3
     return res.status(200).json(
@@ -128,10 +129,12 @@ const confirmUploadAndProcess = asyncHandler(async (req, res) => {
     }, {
         jobId: `docs-${file._id}`,
         priority: 1,
-        removeOnComplete: true,
-        removeOnFail: true
+        // removeOnComplete: true,
+        // removeOnFail: true
         // attempts: 3,
         // backoff: { type: "exponential", delay: 5000 },
+       
+        
     })
 
 
