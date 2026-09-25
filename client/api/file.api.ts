@@ -29,11 +29,11 @@ const uploadFileToS3 = async (file: File) => {
         });
 
         // get pdf file from aws s3 via cloudfront cdn for frontend 
-                //   const pdfUrl  =  await axios.get(presignedUrl, {
-                //         headers: {
-                //             "Content-Type": file.type,
-                //         },
-                //     });
+        //   const pdfUrl  =  await axios.get(presignedUrl, {
+        //         headers: {
+        //             "Content-Type": file.type,
+        //         },
+        //     });
 
 
         // 3. Notify the Backend to add the job into Redis/BullMQ for background parsing
@@ -44,7 +44,7 @@ const uploadFileToS3 = async (file: File) => {
 
         // Return the original intent data so the hook can use the conversationId for routing
         return response.data.data;
-        
+
     } catch (error) {
         console.log(error)
         throw error;
@@ -68,8 +68,9 @@ const uploadFileToS3 = async (file: File) => {
 
 
 
+
 export {
-    uploadFileToS3
+    uploadFileToS3,
 }
 
 

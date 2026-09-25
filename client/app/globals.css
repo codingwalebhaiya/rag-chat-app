@@ -129,7 +129,7 @@
     cursor: pointer;
   }
   html {
-    @apply font-sans;
-    scroll-behavior: smooth;
+
+    scroll-behavior: smooth !important; /* Forces the entire browser document thread to navigate smoothly */;
   }
 }
