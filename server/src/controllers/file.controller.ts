@@ -6,6 +6,9 @@ import File from "../models/file.model.js";
 import ApiError from "../utils/apiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import uploadPresignedUrl from "../utils/generateUploadPresignedUrl.js";
+import { redisPublisher, redisSubscriber } from "../config/pubsub.js";
+import { getProgressChannel } from "../services/ingestionProgress.service.js";
+
 
 // ===== STEP 1: Generate Upload URL =====
 const getUploadUrl = asyncHandler(async (req, res) => {
@@ -28,7 +31,7 @@ const getUploadUrl = asyncHandler(async (req, res) => {
     const safeFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
 
     // create pinecone namespace
-   const namespace = `tenant_user_${userId.toString()}`;
+    const namespace = `tenant_user_${userId.toString()}`;
 
 
     const s3FileKey = `docs/${userId.toString()}/${Date.now()}-${safeFileName}`;
@@ -46,7 +49,7 @@ const getUploadUrl = asyncHandler(async (req, res) => {
         fileSize,
         mimeType,
         s3FileKey,
-        pineconeNamespace:namespace
+        pineconeNamespace: namespace
 
     })
 
@@ -56,7 +59,7 @@ const getUploadUrl = asyncHandler(async (req, res) => {
         fileId: file._id,
         title: safeFileName
     })
-    
+
 
     // send response with presigned url and upload pdf file from frontend to aws s3
     return res.status(200).json(
@@ -99,6 +102,7 @@ const confirmUploadAndProcess = asyncHandler(async (req, res) => {
         throw new ApiError(400, "S3 key does not match the file");
     }
 
+
     // Get the pinecone namespace from the file
     const pineconeNamespace = file.pineconeNamespace;
 
@@ -126,6 +130,7 @@ const confirmUploadAndProcess = asyncHandler(async (req, res) => {
         conversationId: conversation._id.toString(),
         s3Key,
         pineconeNamespace,
+
     }, {
         jobId: `docs-${file._id}`,
         priority: 1,
@@ -133,8 +138,8 @@ const confirmUploadAndProcess = asyncHandler(async (req, res) => {
         // removeOnFail: true
         // attempts: 3,
         // backoff: { type: "exponential", delay: 5000 },
-       
-        
+
+
     })
 
 
@@ -143,6 +148,7 @@ const confirmUploadAndProcess = asyncHandler(async (req, res) => {
         File.updateOne(
             { _id: file._id },
             { jobId: job.id }
+
         ),
         Conversation.updateOne(
             { _id: conversation._id },
@@ -161,7 +167,85 @@ const confirmUploadAndProcess = asyncHandler(async (req, res) => {
 
 })
 
+const streamRagIngestionProgress = asyncHandler(async (req, res) => {
+
+    const { conversationId } = req.params;
+
+    if (!conversationId) {
+        throw new ApiError(400, "Conversation ID is required")
+    }
+
+
+    //SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // Nginx specific
+
+    res.flushHeaders();
+
+    const channel = getProgressChannel(conversationId.toString());
+
+    const subscriber = redisSubscriber.duplicate();
+    subscriber.on("error", (err) => {
+        console.log("SSE Redis Subscriber Error:", err);
+    });
+    await subscriber.subscribe(channel);
+
+    subscriber.on("message", (_channel, message) => {
+        res.write(`event:progress\n`);
+        res.write(`data: ${message}\n\n`);
+    });
+
+    // // Check for cached progress or DB status immediately so client doesn't miss fast events
+    try {
+        const cached = await redisPublisher.get(`rag-ingestion-cache:${conversationId}`);
+        if (cached) {
+            console.log("SSE Redis Cached");
+            res.write(`event:progress\n`);
+            res.write(`data: ${cached}\n\n`);
+        } else {
+            console.log("SSE Redis Not Cached");
+            const conversation = await Conversation.findById(conversationId).populate("fileId");
+            console.log("sse conversation", conversation);
+            const file = conversation?.fileId as any;
+            console.log("sse file", file);
+            if (file?.fileStatus === false) {
+                res.write(`event:progress\n`);
+                res.write(`data: ${JSON.stringify({
+                    fileId: file._id?.toString() || "",
+                    conversationId,
+                    status: "completed",
+                    progress: 100,
+                    message: "Document ready! You can now ask questions."
+                })}\n\n`);
+            }
+
+        }
+
+    }
+    catch (cacheErr) {
+        console.error("Error reading cached progress:", cacheErr);
+    }
+
+    // keep connection alive 
+    const heartbeat = setInterval(() => {
+        res.write(`: heartbeat\n\n`);
+    }, 15000);
+
+    res.on("close", async () => {
+        clearInterval(heartbeat);
+        await subscriber.unsubscribe(channel);
+        await subscriber.quit()
+        console.log(
+            `SSE connection closed: ${conversationId}`
+        );
+    })
+
+})
+
 export const fileController = {
     getUploadUrl,
-    confirmUploadAndProcess
+    confirmUploadAndProcess,
+    streamRagIngestionProgress
 }

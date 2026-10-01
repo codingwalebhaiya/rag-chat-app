@@ -30,17 +30,17 @@ const fileSchema = new Schema<IFileDocument>(
             required: true,
             unique: true
         },
-        //Socket.io: Transmit all transient stages (downloading, loading, splitting, indexing, completed, failed)
+        //show via SSE: Transmit all transient stages (downloading, loading, splitting, indexing, completed, failed)
         fileStatus: {
-           type:Boolean,
-           required:true,
-           default:false
+            type: Boolean,
+            required: true,
+            default: false
         },
         pineconeNamespace: {
             type: String,
             required: true
         },
-       
+
         jobId: {
             type: String,
             default: null,

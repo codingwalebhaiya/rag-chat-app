@@ -9,28 +9,43 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { WebPDFLoader } from "@langchain/community/document_loaders/web/pdf";
 import s3Client from "../config/s3Client.js";
 import { streamToBlob } from "../utils/s3StreamToBlob.js";
-import { emitFileProgress } from "../config/socket.js";
 import { Document } from "@langchain/core/documents";
+import { publishProgress } from "../services/ingestionProgress.service.js";
 
+
+// types/ingestionProgress.ts
+
+export type IngestionProgressStatus =
+    | "downloading"
+    | "parsing"
+    | "splitting"
+    | "indexing"
+    | "completed"
+    | "failed";
+
+
+export interface IngestionProgressEvent {
+    fileId: string;
+    conversationId: string;
+    status: IngestionProgressStatus;
+    progress: number;
+    message: string;
+}
 const docsWorker = new Worker(
     "document-ingestion-queue",
     async (job: Job) => {
         const { fileId, fileName, conversationId, s3Key, pineconeNamespace } = job.data;
         console.log(`[Worker] Started processing file: ${fileId}`);
 
-        await job.updateProgress(5);
-
         try {
 
-            emitFileProgress(conversationId, {
+            await publishProgress({
                 fileId,
                 conversationId,
                 status: "downloading",
                 progress: 10,
                 message: "Downloading PDF from storage..."
-            });
-
-            await job.updateProgress(10);
+            })
 
             // Pull down stream from aws s3 
             const s3Response = await s3Client.send(new GetObjectCommand({
@@ -42,16 +57,14 @@ const docsWorker = new Worker(
                 throw new ApiError(400, "Empty S3 file body received")
             }
 
-            emitFileProgress(conversationId, {
+            await publishProgress({
                 fileId,
                 conversationId,
-                status: "loading",
+                status: "parsing",
                 progress: 30,
-                message: "Loading PDF pages..."
-            });
+                message: "parsing PDF..."
+            })
 
-            await job.updateProgress(30);
-            
             const fileBlob = await streamToBlob(s3Response.Body, "application/pdf");
             const loader = new WebPDFLoader(fileBlob, { splitPages: true, parsedItemSeparator: "", }
             );
@@ -72,13 +85,15 @@ const docsWorker = new Worker(
                 ],
             });
 
-            emitFileProgress(conversationId, {
-                fileId,
-                conversationId,
-                status: "splitting",
-                progress: 50,
-                message: `Splitting ${pages.length} pages into chunks...`
-            });
+            await publishProgress(
+                {
+                    fileId,
+                    conversationId,
+                    status: "splitting",
+                    progress: 50,
+                    message: `Splitting ${pages.length} pages into chunks...`
+                }
+            )
 
             await job.updateProgress(50);
 
@@ -98,15 +113,15 @@ const docsWorker = new Worker(
                 });
 
 
-            emitFileProgress(conversationId, {
-                fileId,
+            await publishProgress({
                 conversationId,
+                fileId,
                 status: "indexing",
                 progress: 70,
                 message: `Indexing ${chunks.length} chunks into vector database...`
             });
 
-            await job.updateProgress(70);
+
 
             await ingestDocuments({
                 chunksWithMetadata,
@@ -124,9 +139,9 @@ const docsWorker = new Worker(
                 conversationStatus: true
             });
 
-            emitFileProgress(conversationId, {
-                fileId,
+            await publishProgress({
                 conversationId,
+                fileId,
                 status: "completed",
                 progress: 100,
                 message: "Document ready! You can now ask questions."
@@ -146,7 +161,7 @@ const docsWorker = new Worker(
                 conversationStatus: false
 
             })
-            emitFileProgress(conversationId, {
+            await publishProgress({
                 fileId,
                 conversationId,
                 status: "failed",

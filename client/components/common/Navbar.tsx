@@ -1,26 +1,40 @@
-
 "use client";
 
-import * as React from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Menu, X, ArrowRight } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
+import {
+  ArrowRight,
+  Loader2,
+  LogOut,
+  User,
+  FileText,
+  MessageSquare,
+  Columns2,
+  Plus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-const NAV_ITEMS = [
-  { label: "Features", href: "#features" },
-  { label: "Testimonials", href: "#testimonials" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "FAQ", href: "#faq" },
-];
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect, useRef } from "react";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useLogout } from "@/queries/auth.query";
+import { useViewMode, ViewMode } from "@/context/ViewModeContext";
+import { useUploadFile } from "@/queries/file.query";
+import { cn } from "@/lib/utils";
 
 export default function Navbar() {
-  const [isOpen, setIsOpen] = React.useState(false);
-  const [isScrolled, setIsScrolled] = React.useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const pathname = usePathname();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Monitor scroll height to condense navbar height and opacity dynamically
-  React.useEffect(() => {
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { mutate: logout, isPending: isLoggingOut } = useLogout();
+  const { mode, setMode } = useViewMode();
+  const { mutate: uploadFileToS3, isPending: isUploading } = useUploadFile();
+  const isConversationRoute = pathname.startsWith("/c/");
+
+  // Monitor scroll height
+  useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
@@ -28,106 +42,141 @@ export default function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (file.type !== "application/pdf") {
+      alert("Please upload a PDF file only");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size should be less than 5MB");
+      return;
+    }
+
+    uploadFileToS3(file);
+    event.target.value = "";
+  };
+
+  const handleNewChat = () => {
+    fileInputRef.current?.click();
+  };
+
   return (
     <>
+      {/* Hidden File Input for Upload */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept=".pdf,application/pdf"
+        onChange={handleFileSelect}
+      />
+
+      {/* Header */}
       <header
         className={cn(
-          "fixed top-4 left-1/2 -translate-x-1/2 z-50",
-          "w-[calc(100%-32px)] max-w-5xl rounded-xl border transition-all duration-300 ease-in-out",
-          isScrolled
-            ? "py-2.5 bg-background/80 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.03)] border-border/80"
-            : "py-4 bg-background/30 backdrop-blur-xs border-border/40"
+          "w-full border-b bg-card/80 backdrop-blur-sm transition-all duration-200 ",
+          isScrolled ? "py-2" : "py-4",
         )}
       >
-        <nav className="w-full px-6 flex items-center justify-between" aria-label="Main navigation grid">
-          
-          {/* Left Block: Modern Micro Logo */}
-          <Link 
-            href="/" 
-            className="flex items-center gap-2 outline-none focus-visible:ring-1 focus-visible:ring-primary rounded-md group"
-          >
-            <Sparkles className="h-4 w-4 text-primary fill-primary/5 group-hover:rotate-12 transition-transform duration-300" />
-            <span className="font-bold text-sm tracking-tight text-foreground">PDF AI</span>
-          </Link>
-
-          {/* Center Block: Sleek Link Arrays */}
-          <div className="hidden md:flex items-center gap-1">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                className="px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-lg outline-none focus-visible:text-foreground"
+        <nav
+          className="w-full px-3 sm:px-4 md:px-6 flex items-center justify-between gap-3 "
+          aria-label="Main navigation"
+        >
+          {/* Center: Tabs for Conversation Routes */}
+          {isConversationRoute && (
+            <div className="flex-1 flex justify-center">
+              <Tabs
+                value={mode}
+                onValueChange={(value) => setMode(value as ViewMode)}
+                className="w-full max-w-md"
               >
-                {item.label}
-              </Link>
-            ))}
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-3">
+                  <TabsTrigger
+                    value="pdf"
+                    className="gap-1.5 sm:gap-2 px-2 sm:px-3"
+                  >
+                    <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Document</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="chat"
+                    className="gap-1.5 sm:gap-2 px-2 sm:px-3"
+                  >
+                    <MessageSquare className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Chat</span>
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="both"
+                    className="gap-1.5 sm:gap-2 px-2 sm:px-3 hidden md:inline-flex"
+                  >
+                    <Columns2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                    <span className="text-xs sm:text-sm">Split View</span>
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          )}
+
+          {/* left side  on desktop */}
+          <div> </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Desktop: User Actions */}
+            <div className="hidden md:flex items-center gap-3">
+              {isAuthenticated && user ? (
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-primary text-primary-foreground flex items-center justify-center w-8 h-8">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    disabled={isLoggingOut}
+                    onClick={() => logout()}
+                    className="text-xs font-medium text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                  >
+                    {isLoggingOut ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <LogOut className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
+              ) : (
+                <Button size="sm" asChild>
+                  <Link href="/login" className="flex items-center gap-1">
+                    <span>Login</span>
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </Button>
+              )}
+            </div>
+
+            {/* Mobile & Desktop: New Chat Button (always visible on conversation routes) */}
+            {isConversationRoute && (
+              <Button
+                onClick={handleNewChat}
+                disabled={isUploading}
+                size="sm"
+                className=" md:hidden lg:hidden gap-1.5 sm:gap-2 px-3 sm:px-4 h-9 text-xs sm:text-sm"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                )}
+                <span className="hidden xs:inline">New Chat</span>
+                <span className="xs:hidden">New</span>
+              </Button>
+            )}
           </div>
-
-          {/* Right Block: Clean Conversion CTA Trigger */}
-          <div className="hidden md:flex items-center">
-            <Button  size="sm" className="rounded-xl px-4 text-xs font-semibold shadow-2xs bg-primary text-primary-foreground hover:opacity-95 flex items-center gap-1 group">
-             <Link href={"/login"} >Login</Link>
-              
-              <ArrowRight className="h-3 w-3 text-primary-foreground/80 group-hover:translate-x-0.5 transition-transform" />
-           
-            </Button>
-          </div>
-
-          {/* Mobile Controller Toggle Button */}
-          <button
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-1 rounded-lg text-muted-foreground hover:text-foreground transition-colors outline-none focus-visible:ring-1 focus-visible:ring-primary md:hidden"
-            aria-expanded={isOpen}
-            aria-label="Toggle navigation viewport"
-          >
-            {isOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
-
         </nav>
       </header>
-
-      {/* Responsive Mobile Drawer Mask overlay */}
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* Soft Ambient Backdrop Blur click target */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-background/40 backdrop-blur-sm z-40 md:hidden"
-            />
-
-            {/* Menu Panel Stream */}
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed top-20 left-4 right-4 z-40 p-5 rounded-xl border bg-background shadow-xl flex flex-col gap-4 md:hidden border-border/80"
-            >
-              <div className="flex flex-col gap-1">
-                {NAV_ITEMS.map((item) => (
-                  <Link
-                    key={item.label}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className="block px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-all"
-                  >
-                    {item.label}
-                  </Link>
-                ))}
-              </div>
-              <div className="h-px bg-border/40 w-full my-0.5" />
-              <Button onClick={() => setIsOpen(false)} className="w-full rounded-xl py-5 text-xs font-semibold bg-primary text-primary-foreground flex items-center justify-center gap-1">
-                <Link href={"/login"}>Login</Link>
-                <ArrowRight className="h-3 w-3" />
-              </Button>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </>
   );
 }

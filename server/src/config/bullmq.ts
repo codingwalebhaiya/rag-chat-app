@@ -1,9 +1,16 @@
-// src/config/bullmq.ts
+import dotenv from "dotenv"
+dotenv.config()
+
 import { Redis } from "ioredis";
-import redisConfig from "./redis.config.js";
+
+const redisUrl = process.env.UPSTASH_REDIS_URL!;
 
 // Create Redis connection for BullMQ
-const bullmqConnection = new Redis(redisConfig);
+const bullmqConnection = new Redis(redisUrl, {
+    connectTimeout: 10000,
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+})
 
 // Handle connection events
 bullmqConnection.on("connect", () => {

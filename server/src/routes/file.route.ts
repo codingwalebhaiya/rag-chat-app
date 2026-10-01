@@ -8,6 +8,7 @@ fileRoutes.use(authMiddleware);
 
 fileRoutes.post("/presigned-url", fileController.getUploadUrl);
 fileRoutes.post("/file-process", fileController.confirmUploadAndProcess);
+fileRoutes.get("/file-ingestion-progress/:conversationId", fileController.streamRagIngestionProgress)
 
 
 export default fileRoutes;

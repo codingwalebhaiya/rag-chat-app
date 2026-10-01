@@ -4,6 +4,8 @@
 // const pinecone = new PineconeClient({ apiKey: process.env.PINECONE_API_KEY! });
 // export const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX!);
 
+import dotenv from "dotenv"
+dotenv.config()
 import { Pinecone } from '@pinecone-database/pinecone';
 
 const pc = new Pinecone({

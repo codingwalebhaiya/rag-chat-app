@@ -1,53 +1,75 @@
-import { queryEmbeddings } from "../utils/embed.js";
+import { embeddings } from "../config/embed.js";
 import { PineconeStore } from "@langchain/pinecone";
-import { Document } from "@langchain/core/documents";
 import { pineconeIndex } from "../config/pinecone.js";
-
-export interface RetrievedChunk {
-    content: string;
-    fileName: string;
-    pageNumber: number
-}
-
-interface RetrieveContextOptions {
-    query: string;
-    namespace: string;
+import { DocumentInterface } from "@langchain/core/documents";
+ 
+export interface IRetrieveParams {
+    userQuery: string;
     fileId: string;
+    namespace: string
 }
-
 
 export const retrieveContext = async ({
-    query,
-    namespace,
+    userQuery,
     fileId,
-}: RetrieveContextOptions): Promise<RetrievedChunk[]> => {
+    namespace
+}: IRetrieveParams) => {
+
     const vectorStore =
         await PineconeStore.fromExistingIndex(
-            queryEmbeddings,
+            embeddings,
             {
                 pineconeIndex,
-                namespace,
+                namespace
+
             }
         );
 
-    const retriever =
-        vectorStore.asRetriever({
-            k: 5,
-            filter: {
-                fileId,
-            },
-        });
+    //console.log("vector store", vectorStore)
 
-    const docs: Document[] =
-        await retriever.invoke(query);
+    const docs: DocumentInterface[] = await
+        vectorStore.similaritySearch(
+            userQuery,
+            5, // top k - number of chunks to retrieve
+              {
+                fileId:fileId // Filter applied at database level via file id  
+                  // Pre-filtering (Recommended): Filter in Pinecone before similarity search
+              }
+            
 
-    return docs.map((doc) => ({
-        content: doc.pageContent,
-        fileName:
-            doc.metadata.fileName,
-        pageNumber:
-            doc.metadata.pageNumber,
-    }));
+        )
+
+    return docs
+
+
 }
 
 
+
+// Pre-filtering vs Post-filtering
+
+// export class OptimizedRetrieval {
+//     // Pre-filtering (Recommended): Filter in Pinecone before similarity search
+//     async retrieveWithPreFilter(userQuery: string, fileId: string) {
+//         // More efficient - only searches relevant vectors
+//         const docs = await vectorStore.similaritySearch(
+//             userQuery, 
+//             5, 
+//             { fileId }  // Filter applied at database level
+//         );
+//         return docs;
+//     }
+    
+//     // Post-filtering: Retrieve more, then filter in memory
+//     async retrieveWithPostFilter(userQuery: string, fileId: string) {
+//         // Less efficient but useful for complex logic
+//         const allDocs = await vectorStore.similaritySearch(userQuery, 20);
+        
+//         // Filter in memory
+//         const filteredDocs = allDocs.filter(
+//             doc => doc.metadata.fileId === fileId
+//         );
+        
+//         return filteredDocs.slice(0, 5);
+//     }
+// }

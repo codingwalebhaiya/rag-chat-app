@@ -3,7 +3,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import Conversation from "../models/conversation.model.js";
 import Message from "../models/message.model.js";
 import { retrieveContext } from "../services/retrieval.service.js";
-import generateAnswer from "../services/generation.service.js";
+import { generateAnswerStream } from "../services/generation.service.js";
 import ApiResponse from "../utils/apiResponse.js";
 import File from "../models/file.model.js";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
@@ -57,33 +57,72 @@ const userQuery = asyncHandler(async (req, res) => {
         namespace
     })
 
+    // Step 4: Initialize LangChain stream and get citations
+    const { stream, sources } = await generateAnswerStream({ userQuery, contextOfTopKChunks });
 
-    // generate answer via llm using context of top k chunks 
-    const aiResponse = await generateAnswer({ userQuery, contextOfTopKChunks });
-    console.log("llm ai response", aiResponse)
+    // Step 5: Setup SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no"); // Nginx specific
+    res.flushHeaders();
 
+    // Send retrieved sources immediately
+    res.write(`event: sources\ndata: ${JSON.stringify({ sources })}\n\n`);
 
+    let fullAnswer = "";
+    let isClientDisconnected = false;
+
+    req.on("close", () => {
+        isClientDisconnected = true;
+    });
+
+    try {
+        for await (const chunk of stream) {
+            if (isClientDisconnected) break;
+
+            const text = typeof chunk.content === "string"
+                ? chunk.content
+                : Array.isArray(chunk.content)
+                    ? chunk.content.map((c) => typeof c === "string" ? c : c?.text || "").join("")
+                    : chunk.content?.toString() || "";
+
+            if (text) {
+                fullAnswer += text;
+                res.write(`event: chunk\ndata: ${JSON.stringify({ text })}\n\n`);
+            }
+        }
+    } catch (streamError: any) {
+        console.error("Error during streaming generation:", streamError);
+        if (!res.writableEnded) {
+            res.write(`event: error\ndata: ${JSON.stringify({ message: streamError?.message || "Failed to generate answer" })}\n\n`);
+            res.end();
+        }
+        return;
+    }
+
+    // Step 6: Save completed assistant message in MongoDB
     const aiMessage = await Message.create({
         conversationId,
         sender: "assistant",
-        content: aiResponse.answer,
-        sources: aiResponse.sources || []
-    })
-    console.log("ai response created in mongodb ", aiMessage);
+        content: fullAnswer,
+        sources: sources || []
+    });
 
-    return res.status(200).json(
-        new ApiResponse(200, "Message sent successfully", {
+    // Step 7: Send done event with final message metadata and close stream
+    if (!isClientDisconnected && !res.writableEnded) {
+        res.write(`event: done\ndata: ${JSON.stringify({
             assistantMessage: {
+                _id: aiMessage._id,
                 sender: aiMessage.sender,
                 content: aiMessage.content,
                 sources: aiMessage.sources,
                 createdAt: aiMessage.createdAt,
                 updatedAt: aiMessage.updatedAt,
             }
-
-        })
-    )
-
+        })}\n\n`);
+        res.end();
+    }
 })
 
 // get single conversation with all messages by conversation id
@@ -103,7 +142,6 @@ const conversation = asyncHandler(async (req, res) => {
     let cloudfrontSignedUrl = null;
     if (
         conversation.fileId &&
-        conversation.fileId.fileStatus === true &&
         conversation.fileId.s3FileKey) {
 
         try {
@@ -205,7 +243,7 @@ const deleteConversation = asyncHandler(async (req, res) => {
         const pineconeNamespace = `tenant_user_${userId.toString()}`;
 
         // Delete with filter via fileId
-   await pineconeIndex.namespace(pineconeNamespace).deleteMany({
+        await pineconeIndex.namespace(pineconeNamespace).deleteMany({
             fileId: { $eq: fileId }
         });
 

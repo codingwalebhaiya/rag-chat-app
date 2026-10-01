@@ -8,15 +8,34 @@ const messageSchema = new Schema<IMessageDocument>({
         required: true,
         index: true,
     },
+
     sender: {
         type: String,
-        enum: ["USER", "AI"],
+        enum: ['user', 'assistant'],
         required: true,
     },
     content: {
         type: String,
         required: true,
-    }
+    },
+    sources: [
+        {
+            _id: false, // Prevents Mongoose from generating unnecessary IDs for each citation
+            fileName: {
+                type: String,
+                required: true
+            },
+            pageNumber: {
+                type: Number,
+                required: true,
+            },
+            chunkIndex: {
+                type: Number,
+                required: true,
+            }
+        }
+    ]
+
 },
 
     {
@@ -26,9 +45,7 @@ const messageSchema = new Schema<IMessageDocument>({
 
 )
 
-// Optimized index for fast timeline loading
-messageSchema.index({ conversation: 1, createdAt: 1 });
 
 const Message = mongoose.models.Message || mongoose.model<IMessageDocument>("Message", messageSchema)
 
-export default Message
+export default Message;

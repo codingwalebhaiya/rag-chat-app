@@ -5,7 +5,7 @@ export interface ChunkMetadata {
     fileId: string;
     fileName: string;
     userId: string;
-    namespace: string;
+    pineconeNamespace: string;
     pageNumber: number;
     chunkIndex: number;
     // contentLength: number;
@@ -17,7 +17,7 @@ interface SplitDocumentsOptions {
     fileId: string;
     fileName: string;
     userId: string;
-    namespace: string;
+    pineconeNamespace: string;
 }
 
 
@@ -26,7 +26,7 @@ export const splitDocuments = async ({
     fileId,
     fileName,
     userId,
-    namespace
+    pineconeNamespace
 
 }: SplitDocumentsOptions) => {
     const textSplitter = new RecursiveCharacterTextSplitter({
@@ -41,7 +41,7 @@ export const splitDocuments = async ({
             fileId,
             fileName,
             userId,
-            namespace,
+            pineconeNamespace,
             pageNumber: chunkDocument.metadata.pageNumber ?? 1,
             chunkIndex: chunkIndex,
             // contentLength: doc.pageContent.length,
