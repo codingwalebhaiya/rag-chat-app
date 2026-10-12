@@ -14,6 +14,7 @@ import { publishProgress } from "../services/ingestionProgress.service.js";
 
 
 // types/ingestionProgress.ts
+// document ingestion pipeline 
 
 export type IngestionProgressStatus =
     | "downloading"
