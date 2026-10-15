@@ -4,14 +4,14 @@
 // const pinecone = new PineconeClient({ apiKey: process.env.PINECONE_API_KEY! });
 // export const pineconeIndex = pinecone.Index(process.env.PINECONE_INDEX!);
 
-import dotenv from "dotenv"
-dotenv.config()
+
 import { Pinecone } from '@pinecone-database/pinecone';
+import { env } from "./env.js"
 
 const pc = new Pinecone({
-  apiKey: process.env.PINECONE_API_KEY!
+  apiKey: env.PINECONE_API_KEY
 });
-export const pineconeIndex = pc.index(process.env.PINECONE_INDEX!);
+export const pineconeIndex = pc.index(env.PINECONE_INDEX);
 
 
  //Optimization Checklist for Fast & Proper RAGTo ensure

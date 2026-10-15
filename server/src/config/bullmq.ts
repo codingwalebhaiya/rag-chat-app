@@ -1,9 +1,7 @@
-import dotenv from "dotenv"
-dotenv.config()
-
 import { Redis } from "ioredis";
+import { env } from "./env.js";
 
-const redisUrl = process.env.UPSTASH_REDIS_URL!;
+const redisUrl = env.UPSTASH_REDIS_URL;
 
 // Create Redis connection for BullMQ
 const bullmqConnection = new Redis(redisUrl, {

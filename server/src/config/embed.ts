@@ -1,11 +1,9 @@
-import dotenv from "dotenv"
-dotenv.config()
-
+import { env } from "./env.js"
 
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai"
 
 export const embeddings = new GoogleGenerativeAIEmbeddings({
-  apiKey: process.env.GOOGLE_GEMINI_API_KEY!,
+  apiKey: env.GOOGLE_GEMINI_API_KEY,
   model: "gemini-embedding-001", // by default - 3072 dimensions
 })
 

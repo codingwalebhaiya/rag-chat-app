@@ -1,16 +1,17 @@
+import { env } from "./env.js";
 import { Redis } from "ioredis";
 
-const redisUrl = process.env.UPSTASH_REDIS_URL!;
+const redisUrl = env.UPSTASH_REDIS_URL;
 
 const redisPublisher = new Redis(redisUrl, {
     maxRetriesPerRequest: 1,
     enableReadyCheck: false,
-    connectTimeout: 1000000,
+    connectTimeout: 100000,
 });
 const redisSubscriber = new Redis(redisUrl, {
     maxRetriesPerRequest: 1,
     enableReadyCheck: false,
-    connectTimeout: 1000000,
+    connectTimeout: 100000,
 });
 
 
