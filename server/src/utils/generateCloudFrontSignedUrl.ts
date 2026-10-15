@@ -1,11 +1,10 @@
-
+import { env } from "../config/env.js";
 import { getSignedUrl } from "@aws-sdk/cloudfront-signer";
 
 const generateCloudFrontSignedUrl = (fileKey: string, expiresInSeconds: number = 3600) => {
-    const privateKey = process.env.CLOUDFRONT_PRIVATE_KEY!;
-
-    const cloudfrontDomain = process.env.CLOUDFRONT_DOMAIN!;
-    const keyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID!;
+    const privateKey = env.CLOUDFRONT_PRIVATE_KEY;
+    const cloudfrontDomain = env.CLOUDFRONT_DOMAIN;
+    const keyPairId = env.CLOUDFRONT_KEY_PAIR_ID;
 
     if (!keyPairId || !cloudfrontDomain || !privateKey) {
         throw new Error("Missing CloudFront configuration");

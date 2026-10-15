@@ -1,3 +1,4 @@
+import { env } from "../config/env.js";
 import jwt from "jsonwebtoken";
 import { AccessTokenPayload, RefreshTokenPayload } from "../types/jwt.types.js"
 import crypto from "crypto"
@@ -5,30 +6,30 @@ import ApiError from "./apiError.js";
 
 const generateAccessToken = (payload: AccessTokenPayload): string => {
 
-  if (!process.env.JWT_ACCESS_SECRET_KEY) {
+  if (!env.JWT_ACCESS_SECRET_KEY) {
     throw new ApiError(500, "JWT Access Secret Key is not defined in environment variables")
   }
-  return jwt.sign(payload, process.env.JWT_ACCESS_SECRET_KEY!, { expiresIn: "60m" })
+  return jwt.sign(payload, env.JWT_ACCESS_SECRET_KEY, { expiresIn: "60m" })
 
 }
 
 const generateRefreshToken = (payload: RefreshTokenPayload): string => {
 
-  if (!process.env.JWT_REFRESH_SECRET_KEY) {
+  if (!env.JWT_REFRESH_SECRET_KEY) {
     throw new ApiError(500, "JWT Refresh Secret Key is not defined in environment variables")
   }
-  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET_KEY!, { expiresIn: "7d" })
+  return jwt.sign(payload, env.JWT_REFRESH_SECRET_KEY, { expiresIn: "7d" })
 
 }
 
 const verifyAccessToken = (token: string): AccessTokenPayload => {
 
-  if (!process.env.JWT_ACCESS_SECRET_KEY) {
+  if (!env.JWT_ACCESS_SECRET_KEY) {
     throw new ApiError(500, "JWT Access Secret Key is not defined in environment variables")
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET_KEY!) as AccessTokenPayload;
+    const decoded = jwt.verify(token, env.JWT_ACCESS_SECRET_KEY) as AccessTokenPayload;
 
     if (typeof decoded === "string") {
       throw new ApiError(401, "Invalid access token")
@@ -45,12 +46,12 @@ const verifyAccessToken = (token: string): AccessTokenPayload => {
 
 const verifyRefreshToken = (token: string): RefreshTokenPayload => {
 
-  if (!process.env.JWT_REFRESH_SECRET_KEY) {
+  if (!env.JWT_REFRESH_SECRET_KEY) {
     throw new ApiError(500, "JWT Refresh Secret Key is not defined in environment variables")
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET_KEY!) as RefreshTokenPayload;
+    const decoded = jwt.verify(token, env.JWT_REFRESH_SECRET_KEY) as RefreshTokenPayload;
 
     if (typeof decoded === "string") {
       throw new ApiError(401, "Invalid refresh token")

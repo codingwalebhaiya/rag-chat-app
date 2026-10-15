@@ -32,10 +32,18 @@ const userQuery = asyncHandler(async (req, res) => {
         throw new ApiError(404, "conversation not found")
     }
 
-    const file = conversation.fileId;
+    const file = conversation.fileId as any;
 
     if (!file) {
         throw new ApiError(404, "file not found")
+    }
+
+    // Check if document ingestion pipeline has completed
+    if (file.fileStatus !== "ready" || file.ingestionProgressStatus !== "completed") {
+        throw new ApiError(
+            400,
+            "Document ingestion is in progress. Please wait until indexing completes before asking questions."
+        );
     }
 
     // add same namespace like ingestion pipeline - which is store in pinecone db 
@@ -85,7 +93,7 @@ const userQuery = asyncHandler(async (req, res) => {
                 ? chunk.content
                 : Array.isArray(chunk.content)
                     ? chunk.content.map((c) => typeof c === "string" ? c : c?.text || "").join("")
-                    : chunk.content?.toString() || "";
+                    : (chunk.content as any)?.toString() || "";
 
             if (text) {
                 fullAnswer += text;
@@ -167,8 +175,12 @@ const conversation = asyncHandler(async (req, res) => {
         new ApiResponse(200, "Conversation loaded successfully", {
             cloudfrontSignedUrl,
             file: {
-                id: conversation.fileId._id.toString(),
-                status: conversation.fileId.fileStatus,
+                id: (conversation.fileId as any)._id.toString(),
+                fileName: (conversation.fileId as any).fileName,
+                fileStatus: (conversation.fileId as any).fileStatus,
+                ingestionProgressStatus: (conversation.fileId as any).ingestionProgressStatus,
+                ingestionProgressPercentage: (conversation.fileId as any).ingestionProgressPercentage ?? 0,
+                ingestionProgressMessage: (conversation.fileId as any).ingestionProgressMessage ?? "",
             },
             conversation: {
                 id: conversation._id.toString(),

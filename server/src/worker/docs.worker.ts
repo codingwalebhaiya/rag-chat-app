@@ -12,40 +12,24 @@ import { streamToBlob } from "../utils/s3StreamToBlob.js";
 import { Document } from "@langchain/core/documents";
 import { publishProgress } from "../services/ingestionProgress.service.js";
 
-
-// types/ingestionProgress.ts
-// document ingestion pipeline 
-
-export type IngestionProgressStatus =
-    | "downloading"
-    | "parsing"
-    | "splitting"
-    | "indexing"
-    | "completed"
-    | "failed";
-
-
-export interface IngestionProgressEvent {
-    fileId: string;
-    conversationId: string;
-    status: IngestionProgressStatus;
-    progress: number;
-    message: string;
-}
 const docsWorker = new Worker(
     "document-ingestion-queue",
     async (job: Job) => {
+
+        console.log("Processing job with data:", job.data);
         const { fileId, fileName, conversationId, s3Key, pineconeNamespace } = job.data;
         console.log(`[Worker] Started processing file: ${fileId}`);
 
         try {
 
+            await File.updateOne({ _id: fileId }, { ingestionProgressStatus: "downloading"})
             await publishProgress({
                 fileId,
                 conversationId,
                 status: "downloading",
                 progress: 10,
-                message: "Downloading PDF from storage..."
+                message: "Downloading PDF from storage...",
+                error: null
             })
 
             // Pull down stream from aws s3 
@@ -58,12 +42,14 @@ const docsWorker = new Worker(
                 throw new ApiError(400, "Empty S3 file body received")
             }
 
+            await File.updateOne({ _id: fileId }, { ingestionProgressStatus: "parsing" })
             await publishProgress({
                 fileId,
                 conversationId,
                 status: "parsing",
                 progress: 30,
-                message: "parsing PDF..."
+                message: "parsing PDF...",
+                error: null
             })
 
             const fileBlob = await streamToBlob(s3Response.Body, "application/pdf");
@@ -86,13 +72,15 @@ const docsWorker = new Worker(
                 ],
             });
 
+            await File.updateOne({ _id: fileId }, { ingestionProgressStatus: "splitting" })
             await publishProgress(
                 {
                     fileId,
                     conversationId,
                     status: "splitting",
                     progress: 50,
-                    message: `Splitting ${pages.length} pages into chunks...`
+                    message: `Splitting ${pages.length} pages into chunks...`,
+                    error: null
                 }
             )
 
@@ -113,13 +101,14 @@ const docsWorker = new Worker(
                     });
                 });
 
-
+            await File.updateOne({ _id: fileId }, { ingestionProgressStatus: "indexing" })
             await publishProgress({
                 conversationId,
                 fileId,
                 status: "indexing",
                 progress: 70,
-                message: `Indexing ${chunks.length} chunks into vector database...`
+                message: `Indexing ${chunks.length} chunks into vector database...`,
+                error: null
             });
 
 
@@ -131,12 +120,15 @@ const docsWorker = new Worker(
 
             // update file status
             await File.findByIdAndUpdate(fileId, {
-                fileStatus: true
+                fileStatus: "ready",
+                ingestionProgressStatus: "completed",
+                ingestionProgressPercentage: 100,
+                ingestionProgressMessage: "Document ready! You can now ask questions.",
+                ingestionProgressError: null,
             });
 
             // update conversation status
             await Conversation.findByIdAndUpdate(conversationId, {
-                $addToSet: { files: fileId },
                 conversationStatus: true
             });
 
@@ -145,7 +137,8 @@ const docsWorker = new Worker(
                 fileId,
                 status: "completed",
                 progress: 100,
-                message: "Document ready! You can now ask questions."
+                message: "Document ready! You can now ask questions.",
+                error: null
             });
 
             await job.updateProgress(100);
@@ -155,20 +148,27 @@ const docsWorker = new Worker(
 
             const errorMessage = error instanceof Error ? error.message : "Unknown error";
             await File.findByIdAndUpdate(fileId, {
-                fileStatus: false
-            })
+                fileStatus: "failed",
+                ingestionProgressStatus: "failed",
+                ingestionProgressError: errorMessage,
+                ingestionProgressPercentage: 0,
+                ingestionProgressMessage: `Processing failed: ${errorMessage}`,
+            });
 
             await Conversation.findByIdAndUpdate(conversationId, {
                 conversationStatus: false
-
-            })
+            });
+            
             await publishProgress({
                 fileId,
                 conversationId,
                 status: "failed",
                 progress: 0,
-                message: `Processing failed: ${errorMessage}`
+                message: `Processing failed: ${errorMessage}`,
+                error: errorMessage
             });
+
+
             throw error;
         }
     },

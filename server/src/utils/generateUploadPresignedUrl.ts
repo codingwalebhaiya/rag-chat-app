@@ -1,5 +1,4 @@
-import dotenv from "dotenv"
-dotenv.config()
+import { env } from "../config/env.js";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner"
 import s3Client from "../config/s3Client.js"
 import { PutObjectCommand } from "@aws-sdk/client-s3";
@@ -12,7 +11,7 @@ const uploadPresignedUrl = async (fileKey: string, mimeType: string): Promise<st
     try {
 
         const command = new PutObjectCommand({
-            Bucket: process.env.AWS_S3_BUCKET_NAME!,
+            Bucket: env.AWS_S3_BUCKET_NAME,
             Key: fileKey,
             ContentType: mimeType
         })

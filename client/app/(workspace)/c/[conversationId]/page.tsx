@@ -1,4 +1,4 @@
-"use client"
+"use client";
 
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
@@ -21,18 +21,23 @@ interface IMessage {
   sources?: ISource[];
   createdAt: string;
   updatedAt: string;
-
 }
 interface IConversation {
   id: string;
   messages: IMessage[];
 }
 
+export type FileStatus = "pending" | "processing" | "ready" | "failed";
+
 interface IConversationResponse {
   cloudfrontSignedUrl: string;
   file: {
     id: string;
-    status: boolean | string;
+    fileName?: string;
+    fileStatus: FileStatus;
+    ingestionProgressStatus: string;
+    ingestionProgressPercentage?: number;
+    ingestionProgressMessage?: string;
   };
   conversation: IConversation;
 }
@@ -81,15 +86,16 @@ export default function ConversationPage() {
       if (!response.data.success) {
         throw new Error(response.data.message || "Failed to get conversation");
       }
-      console.log(response)
+      console.log(response);
       return response.data.data as IConversationResponse;
-    }
+    },
   });
 
   const { data, isLoading, isError, refetch } = getConversation;
 
   const cloudfrontSignedUrl = data?.cloudfrontSignedUrl;
-  const fileStatus = data?.file?.status;
+  const fileStatus = (data?.file?.fileStatus ?? "processing") as FileStatus;
+  const ingestionProgressStatus = data?.file?.ingestionProgressStatus ?? "downloading";
   const messages = data?.conversation?.messages;
 
   // Loading State
@@ -119,29 +125,34 @@ export default function ConversationPage() {
     );
   }
 
-
   return (
     <div className="flex h-full">
       {/* PDF Panel */}
       {(mode === "pdf" || mode === "both") && (
         <div
-          className={`${mode === "both" ? "w-1/2 border-r hidden md:block" : "w-full"
-            } h-full overflow-hidden`}
+          className={`${
+            mode === "both" ? "w-1/2 border-r hidden md:block" : "w-full"
+          } h-full overflow-hidden`}
         >
-          <PdfViewer cloudfrontSignedUrl={cloudfrontSignedUrl} className="h-full" />
+          <PdfViewer
+            cloudfrontSignedUrl={cloudfrontSignedUrl}
+            className="h-full"
+          />
         </div>
       )}
 
       {/* Chat Panel */}
       {(mode === "chat" || mode === "both") && (
         <div
-          className={`${mode === "both" ? "w-1/2" : "w-full"
-            } h-full overflow-hidden`}
+          className={`${
+            mode === "both" ? "w-1/2" : "w-full"
+          } h-full overflow-hidden`}
         >
           <ConversationInterface
             conversationId={conversationId}
             conversationHistory={messages || []}
-            initialFileStatus={fileStatus === true || fileStatus === "completed"}
+            initialFileStatus={fileStatus}
+            initialIngestionProgressStatus={ingestionProgressStatus}
             className="h-full"
           />
         </div>

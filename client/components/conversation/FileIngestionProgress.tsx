@@ -45,14 +45,16 @@ export function FileIngestionProgress({
     const [isConnected, setIsConnected] = useState(false);
     const [isVisible, setIsVisible] = useState(!initialCompleted);
 
-    const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
+    const baseUrl = "http://localhost:8000/api/v1";
+
+    //const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 
     useEffect(() => {
         if (!conversationId || initialCompleted) {
             return;
         }
 
-        const url = `${API_URL}/api/v1/files/file-ingestion-progress/${conversationId}`;
+        const url = `${baseUrl}/files/file-ingestion-progress/${conversationId}`;
         const eventSource = new EventSource(url, {
             withCredentials: true,
         });
@@ -102,7 +104,7 @@ export function FileIngestionProgress({
 
     const statusConfig: Record<string, { icon: any; color: string; bg: string }> = {
         downloading: { icon: Download, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/40" },
-        loading: { icon: Download, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/40" },
+        // loading: { icon: Download, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/40" },
         parsing: { icon: FileText, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-950/40" },
         splitting: { icon: Scissors, color: "text-yellow-500", bg: "bg-yellow-50 dark:bg-yellow-950/40" },
         indexing: { icon: Database, color: "text-purple-500", bg: "bg-purple-50 dark:bg-purple-950/40" },

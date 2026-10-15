@@ -26,17 +26,22 @@ interface IMessage {
   updatedAt: string;
 }
 
+
+export type FileStatus = "pending" | "processing" | "ready" | "failed";
+
 interface IChatInterfaceProps {
   conversationId: string;
   conversationHistory: IMessage[];
-  initialFileStatus?: boolean;
+  initialFileStatus: FileStatus;
+  initialIngestionProgressStatus?: string;
   className?: string;
 }
 
 export default function ChatInterface({
   conversationId,
   conversationHistory,
-  initialFileStatus = false,
+  initialFileStatus,
+  initialIngestionProgressStatus,
   className,
 }: IChatInterfaceProps) {
   const [messages, setMessages] = useState<IMessage[]>(
@@ -44,8 +49,10 @@ export default function ChatInterface({
   );
   const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isIngesting, setIsIngesting] = useState(!initialFileStatus);
-  const [ingestionProgress, setIngestionProgress] = useState(initialFileStatus ? 100 : 0);
+  const isReadyInitially = initialFileStatus === "ready" && initialIngestionProgressStatus === "completed";
+  const [isFailed, setIsFailed] = useState(initialFileStatus === "failed" || initialIngestionProgressStatus === "failed");
+  const [isIngesting, setIsIngesting] = useState(!isReadyInitially && !isFailed);
+  const [ingestionProgress, setIngestionProgress] = useState(isReadyInitially ? 100 : 0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const queryClient = useQueryClient();
@@ -75,7 +82,7 @@ export default function ChatInterface({
   const handleSendMessage = async () => {
     const userQuery = input.trim();
 
-    if (!userQuery || isGenerating || isIngesting) return;
+    if (!userQuery || isGenerating || isIngesting || isFailed) return;
 
     const userMsg: IMessage = {
       sender: "user",
@@ -101,9 +108,7 @@ export default function ChatInterface({
     abortControllerRef.current = controller;
 
     try {
-      const baseUrl = process.env.NEXT_PUBLIC_BACKEND_URL
-        ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/v1`
-        : "http://localhost:8000/api/v1";
+      const baseUrl = "http://localhost:8000/api/v1";
 
       const response = await fetch(`${baseUrl}/conversations/${conversationId}/query`, {
         method: "POST",
@@ -245,6 +250,8 @@ export default function ChatInterface({
 
   const handleIngestionComplete = () => {
     setIsIngesting(false);
+    setIsFailed(false);
+    setIngestionProgress(100);
     queryClient.invalidateQueries({ queryKey: ["conversation", conversationId] });
     toast.success("Document ingestion completed! You can now ask questions.");
   };
@@ -253,6 +260,11 @@ export default function ChatInterface({
     setIngestionProgress(progressData.progress);
     if (progressData.status === "completed") {
       setIsIngesting(false);
+      setIsFailed(false);
+    } else if (progressData.status === "failed") {
+      setIsIngesting(false);
+      setIsFailed(true);
+      toast.error(progressData.message || "Document processing failed");
     }
   };
 
@@ -261,7 +273,7 @@ export default function ChatInterface({
       {/* Processing Status - shows only in conversation when needed */}
       <FileIngestionProgress
         conversationId={conversationId}
-        initialCompleted={initialFileStatus}
+        initialCompleted={isReadyInitially}
         onProgressUpdate={handleProgressUpdate}
         onComplete={handleIngestionComplete}
       />
@@ -319,7 +331,7 @@ export default function ChatInterface({
                   <>
                     <ReactMarkdown
                       components={{
-                        code({ node, inline, className, children, ...props }) {
+                        code({ node, inline, className, children, ...props }: any) {
                           const match = /language-(\w+)/.exec(className || "");
                           const [copied, setCopied] = useState(false);
 
@@ -410,16 +422,26 @@ export default function ChatInterface({
             </span>
           </div>
         )}
+        {isFailed && (
+          <div className="flex items-center gap-2 mb-2 text-xs text-destructive">
+            <span className="h-2 w-2 rounded-full bg-destructive shrink-0" />
+            <span className="font-medium">
+              Document indexing failed. Querying is disabled for this file.
+            </span>
+          </div>
+        )}
         <div className="flex gap-2">
           <textarea
-            disabled={isIngesting || isGenerating}
+            disabled={isIngesting || isGenerating || isFailed}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              isIngesting
-                ? `Indexing document (${ingestionProgress}%)... Please wait`
-                : "Ask a question about this document... (Shift+Enter for newline)"
+              isFailed
+                ? "Document indexing failed. Please upload a new document."
+                : isIngesting
+                  ? `Indexing document (${ingestionProgress}%)... Please wait`
+                  : "Ask a question about this document... (Shift+Enter for newline)"
             }
             className="flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 min-h-[40px] max-h-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
             rows={1}
@@ -437,11 +459,11 @@ export default function ChatInterface({
           ) : (
             <Button
               onClick={handleSendMessage}
-              disabled={isIngesting || !input.trim()}
+              disabled={isIngesting || isFailed || !input.trim()}
               size="icon"
               className={cn(
                 "shrink-0",
-                isIngesting || !input.trim()
+                isIngesting || isFailed || !input.trim()
                   ? "cursor-not-allowed opacity-50"
                   : "cursor-pointer"
               )}

@@ -2,7 +2,6 @@
 
 export type IngestionProgressStatus =
     | "downloading"
-    | "loading"
     | "parsing"
     | "splitting"
     | "indexing"
@@ -16,4 +15,5 @@ export interface IngestionProgressEvent {
     status: IngestionProgressStatus;
     progress: number;
     message: string;
+    error: string | null;
 }

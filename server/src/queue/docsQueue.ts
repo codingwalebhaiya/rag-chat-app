@@ -1,10 +1,11 @@
 
 import { Queue } from "bullmq";
 import { Redis } from "ioredis";
+import { env } from "../config/env.js";
 
 // Create the document processing queue
 export const docsQueue = new Queue("document-ingestion-queue", {
-    connection: new Redis(process.env.UPSTASH_REDIS_URL!, {
+    connection: new Redis(env.UPSTASH_REDIS_URL, {
         connectTimeout: 10000,
         maxRetriesPerRequest: 1,
         enableReadyCheck: false,
