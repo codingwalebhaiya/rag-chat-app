@@ -2,7 +2,7 @@ import app from "./app.js";
 import { connectDB } from "./config/db.js";
 import { env } from "./config/env.js";
 
-const PORT = env.PORT || 8000;
+const PORT = Number(env.PORT) || 8000;
 
 connectDB()
   .then(() => {
@@ -14,4 +14,3 @@ connectDB()
     console.error("Failed to start server:", error);
     process.exit(1);
   });
- 
