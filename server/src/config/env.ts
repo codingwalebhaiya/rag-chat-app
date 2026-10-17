@@ -17,7 +17,7 @@ const envSchema = z.object({
     UPSTASH_REDIS_URL: z.string().min(1, "UPSTASH_REDIS_URL is required"),
     PINECONE_API_KEY: z.string().min(1, "PINECONE_API_KEY is required"),
     PINECONE_INDEX: z.string().min(1, "PINECONE_INDEX is required"),
-    CLOUDFRONT_PRIVATE_KEY: z.string().min(1, "CLOUDFRONT_PRIVATE_KEY is required"),
+    CLOUDFRONT_PRIVATE_KEY: z.string().min(1, "CLOUDFRONT_PRIVATE_KEY is required").optional(),
     CLOUDFRONT_KEY_PAIR_ID: z.string().min(1, "CLOUDFRONT_KEY_PAIR_ID is required"),
     CLOUDFRONT_DOMAIN: z.string().min(1, "CLOUDFRONT_DOMAIN is required"),
     JWT_ACCESS_SECRET_KEY: z.string().min(1, "JWT_ACCESS_SECRET_KEY is required"),
