@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import z from "zod";
 dotenv.config();
+import fs from "fs";
 
 const envSchema = z.object({
     NODE_ENV: z
@@ -25,6 +26,7 @@ const envSchema = z.object({
 
 }) 
 
+
 const result = envSchema.safeParse(process.env);
 
 if (!result.success) {
@@ -32,5 +34,23 @@ if (!result.success) {
     process.exit(1);
 }
 
-export const env = result.data;
+// 2. Fetch the CloudFront Private Key dynamically at runtime based on the environment
+let cloudfrontPrivateKey = process.env.CLOUDFRONT_PRIVATE_KEY || "";
+
+if (result.data.NODE_ENV === "production") {
+    try {
+        // Read directly from the Render secure mount file path
+        cloudfrontPrivateKey = fs.readFileSync("/etc/secrets/cloudfront_private_key.pem", "utf8");
+    } catch (err) {
+        console.error("❌ Failed to read secure CloudFront key file from Render volume mounts:", err);
+        process.exit(1);
+    }
+}
+
+// 3. Recombine your parsed data variables with the private key string asset
+export const env = {
+    ...result.data,
+    CLOUDFRONT_PRIVATE_KEY: cloudfrontPrivateKey
+};
+
 export type Env = typeof env;
