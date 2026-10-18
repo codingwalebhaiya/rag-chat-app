@@ -19,22 +19,22 @@ Users can upload a PDF, wait for document processing to complete, and start aski
 ![PDF Chat Interface](screenshots/pdf-conversation.png)
 
 ### Document Processing
-![Ingestion Progress](screenshots/conversation-page.png)
+![Document Processing](screenshots/conversation-page.png)
 
 ### Upload PDF
-![Ingestion Progress](screenshots/upload-pdf.png)
+![Upload PDF](screenshots/upload-pdf.png)
 
 ### Answer Generation via Streaming
-![Ingestion Progress](screenshots/streaming.png)
+![Answer Generation via Streaming](screenshots/streaming.png)
 
 ### User Registration
-![Ingestion Progress](screenshots/register.png)
+![User Registration](screenshots/register.png)
 
 ### User Login
-![Ingestion Progress](screenshots/login.png)
+![User Login](screenshots/login.png)
 
 ### User Logout
-![Ingestion Progress](screenshots/logout.png)
+![User Logout](screenshots/logout.png)
 
 
 
