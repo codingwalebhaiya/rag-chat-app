@@ -294,7 +294,6 @@ The following table describes the intended API responsibilities. Replace example
 | POST | `/api/v1/auth/refresh-token` | Refresh the access token |
 | GET | `/api/v1/auth/profile` | Get the user profile |
  
-These endpoint names are illustrative, not a claim that every route already exists.
 
 ## Security Considerations
 
