@@ -37,7 +37,7 @@ const uploadFileToS3 = async (file: File) => {
 
 
         // 3. Notify the Backend to add the job into Redis/BullMQ for background parsing
-        await api.post("/files/file-process", {
+        await api.post("/files/confirm-upload", {
             conversationId,
             s3Key,
         });
@@ -55,7 +55,7 @@ const uploadFileToS3 = async (file: File) => {
 //  when user upload or select pdf - from new chat buuton from sidebar or upload button from herosection 
 // when user select and upload pdf then call backend api - api.post("/files/presigned-url", { fileName: file.name, fileSize: file.size, mimeType: file.type }
 // then get presignedurl and upload pdf file to aws s3 through this url 
-// wait and when pdf upload successfully then notify the backend via another api call - api.post("/files/file-process", {conversationId, s3Key,});
+// wait and when pdf upload successfully then notify the backend via another api call - api.post("/files/confirm-upload", {conversationId, s3Key,});
 
 // and then navigate to router.push(`/c/${data.conversationId}`)  
 // and then fetch uploaded pdf file from aws s3 via cloudfront cdn until show loading...  in pdf chat interface 

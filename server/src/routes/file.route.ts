@@ -7,7 +7,7 @@ const fileRoutes = express.Router();
 fileRoutes.use(authMiddleware);
 
 fileRoutes.post("/presigned-url", fileController.getUploadUrl);
-fileRoutes.post("/file-process", fileController.confirmUploadAndProcess);
+fileRoutes.post("/confirm-upload", fileController.confirmUploadAndProcess);
 fileRoutes.get("/file-ingestion-progress/:conversationId", fileController.streamRagIngestionProgress)
 
 
