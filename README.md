@@ -10,6 +10,34 @@ PDF Chat makes it easier to understand long documents without manually searching
 
 Users can upload a PDF, wait for document processing to complete, and start asking questions in natural language. The application retrieves relevant document chunks and uses them as context for generating responses.
 
+## Screenshots
+
+### Home Page
+![Home Page](screenshots/home-page.png)
+
+### PDF Chat Interface
+![PDF Chat Interface](screenshots/pdf-conversation.png)
+
+### Document Processing
+![Ingestion Progress](screenshots/conversation-page.png)
+
+### Upload PDF
+![Ingestion Progress](screenshots/upload-pdf.png)
+
+### Answer Generation via Streaming
+![Ingestion Progress](screenshots/streaming.png)
+
+### User Registration
+![Ingestion Progress](screenshots/register.png)
+
+### User Login
+![Ingestion Progress](screenshots/login.png)
+
+### User Logout
+![Ingestion Progress](screenshots/logout.png)
+
+
+
 ### Key Features
 
 - **PDF Upload:** Upload PDF documents using secure, presigned S3 upload URLs.
