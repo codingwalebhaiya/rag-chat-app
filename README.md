@@ -27,8 +27,8 @@ Users can upload a PDF, wait for document processing to complete, and start aski
 
 | Category | Technology |
 |---|---|
-| Frontend | Next.js, React, TypeScript |
-| Backend API | Node.js, Express.js, TypeScript |
+| Frontend | Next.js, React, TypeScript | Shadcn UI| Framer Motion | React PDF | Zustand | axios |
+| Backend API | Node.js, Express.js, TypeScript | Zod | 
 | Database | MongoDB, Mongoose |
 | LLM | Google Gemini |
 | RAG Framework | LangChain |
@@ -190,7 +190,7 @@ Install or configure the following:
 
 ```bash
 git clone https://github.com/codingwalebhaiya/rag-chat-app
-cd pdf-chat-rag
+cd rag-chat-app
 ```
 
 ### 2. Configure the Backend
