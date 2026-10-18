@@ -1,7 +1,6 @@
 import dotenv from "dotenv";
 import z from "zod";
 dotenv.config();
-import fs from "fs";
 
 const envSchema = z.object({
     NODE_ENV: z
@@ -17,7 +16,7 @@ const envSchema = z.object({
     UPSTASH_REDIS_URL: z.string().min(1, "UPSTASH_REDIS_URL is required"),
     PINECONE_API_KEY: z.string().min(1, "PINECONE_API_KEY is required"),
     PINECONE_INDEX: z.string().min(1, "PINECONE_INDEX is required"),
-    CLOUDFRONT_PRIVATE_KEY: z.string().min(1, "CLOUDFRONT_PRIVATE_KEY is required").optional(),
+    CLOUDFRONT_PRIVATE_KEY: z.string().min(1, "CLOUDFRONT_PRIVATE_KEY is required"),
     CLOUDFRONT_KEY_PAIR_ID: z.string().min(1, "CLOUDFRONT_KEY_PAIR_ID is required"),
     CLOUDFRONT_DOMAIN: z.string().min(1, "CLOUDFRONT_DOMAIN is required"),
     JWT_ACCESS_SECRET_KEY: z.string().min(1, "JWT_ACCESS_SECRET_KEY is required"),
@@ -34,23 +33,5 @@ if (!result.success) {
     process.exit(1);
 }
 
-// 2. Fetch the CloudFront Private Key dynamically at runtime based on the environment
-let cloudfrontPrivateKey = process.env.CLOUDFRONT_PRIVATE_KEY || "";
-
-if (result.data.NODE_ENV === "production") {
-    try {
-        // Read directly from the Render secure mount file path
-        cloudfrontPrivateKey = fs.readFileSync("/etc/secrets/cloudfront_private_key.pem", "utf8");
-    } catch (err) {
-        console.error("❌ Failed to read secure CloudFront key file from Render volume mounts:", err);
-        process.exit(1);
-    }
-}
-
-// 3. Recombine your parsed data variables with the private key string asset
-export const env = {
-    ...result.data,
-    CLOUDFRONT_PRIVATE_KEY: cloudfrontPrivateKey
-};
-
+export const env = result.data;
 export type Env = typeof env;
