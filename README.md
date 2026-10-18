@@ -27,6 +27,9 @@ Users can upload a PDF, wait for document processing to complete, and start aski
 ### Answer Generation via Streaming
 ![Answer Generation via Streaming](screenshots/streaming.png)
 
+### Answer with citations
+![Answer with citations](screenshots/answer-with-citations.png)
+
 ### User Registration
 ![User Registration](screenshots/register.png)
 
